@@ -103,10 +103,17 @@ const rpc = async (fn, args) => {
   return data;
 };
 
-/* ── API-Football (chamada direta do browser com chave VITE_) ── */
-const API_BASE = 'https://v3.football.api-sports.io';
-const WC_LEAGUE = 1;
-const WC_SEASON = 2026;
+/* ── ESPN API (gratuita, sem chave, CORS aberto) ── */
+const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world';
+const ESPN_V2 = 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world';
+
+async function espnGet(base, path, params = {}) {
+  const url = new URL(base + path);
+  Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, String(v)); });
+  const r = await fetch(url.toString());
+  if (!r.ok) { const e = new Error(`ESPN ${r.status}`); e.kind = 'api'; throw e; }
+  return r.json();
+}
 
 const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -132,88 +139,115 @@ function matchesTeam(ptName, apiName) {
   return cands.some((c) => c && (c === a || a.includes(c) || c.includes(a)));
 }
 
-async function apiFootballGet(path, params = {}) {
-  const key = import.meta.env.VITE_API_FOOTBALL_KEY;
-  if (!key) { const e = new Error('A chave da API não está configurada (VITE_API_FOOTBALL_KEY).'); e.kind = 'no_key'; throw e; }
-  const url = new URL(API_BASE + path);
-  Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, String(v)); });
-  const r = await fetch(url.toString(), { headers: { 'x-apisports-key': key } });
-  if (!r.ok) { const e = new Error(`API retornou ${r.status}`); e.kind = 'api'; throw e; }
-  const j = await r.json();
-  if (j.errors && Object.keys(j.errors).length) { const e = new Error(JSON.stringify(j.errors)); e.kind = 'api'; throw e; }
-  return j.response || [];
-}
-
 async function fetchStandings() {
-  const data = await apiFootballGet('/standings', { league: WC_LEAGUE, season: WC_SEASON });
-  const league = data[0]?.league;
-  const groups = (league?.standings || []).map((g) => ({
-    group: g[0]?.group || '',
-    rows: g.map((t) => ({
-      rank: t.rank, team: t.team?.name, logo: t.team?.logo,
-      points: t.points, played: t.all?.played, win: t.all?.win,
-      draw: t.all?.draw, lose: t.all?.lose,
-      gf: t.all?.goals?.for, ga: t.all?.goals?.against, gd: t.goalsDiff,
-      form: t.form, desc: t.description,
-    })),
-  }));
+  const data = await espnGet(ESPN_V2, '/standings');
+  const groups = (data.children || []).map((g) => {
+    const entries = g.standings?.entries || [];
+    return {
+      group: g.name,
+      rows: entries.map((e, i) => {
+        const stats = {};
+        (e.stats || []).forEach((s) => { stats[s.name] = s.value; });
+        return {
+          rank: i + 1,
+          team: e.team?.displayName,
+          logo: e.team?.logos?.[0]?.href,
+          points: stats.points,
+          played: stats.gamesPlayed,
+          win: stats.wins,
+          draw: stats.ties,
+          lose: stats.losses,
+          gf: stats.pointsFor,
+          ga: stats.pointsAgainst,
+          gd: stats.pointDifferential,
+          desc: e.note?.description || '',
+        };
+      }),
+    };
+  });
   return { updated: new Date().toISOString(), groups };
 }
 
-const LIVE_STATUS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT']);
+function espnStatus(comp) {
+  const name = comp?.status?.type?.name || '';
+  const period = comp?.status?.period || 0;
+  if (name === 'STATUS_FINAL' || name === 'STATUS_FULL_TIME') return 'FT';
+  if (name === 'STATUS_HALFTIME') return 'HT';
+  if (name === 'STATUS_IN_PROGRESS') {
+    if (period === 1) return '1H';
+    if (period === 2) return '2H';
+    if (period >= 3) return 'ET';
+    return 'LIVE';
+  }
+  return 'NS';
+}
 
-async function fetchMatchInfo(home, away, date) {
-  const day = (date || '').slice(0, 10);
-  let fixtures = await apiFootballGet('/fixtures', { league: WC_LEAGUE, season: WC_SEASON, date: day || undefined });
-  if (!fixtures.length && !day) fixtures = await apiFootballGet('/fixtures', { league: WC_LEAGUE, season: WC_SEASON });
-  const fx = fixtures.find((f) => {
-    const h = f.teams?.home?.name, a = f.teams?.away?.name;
-    return (matchesTeam(home, h) && matchesTeam(away, a)) || (matchesTeam(home, a) && matchesTeam(away, h));
+async function fetchMatchInfo(home, away, kickoff) {
+  const dateStr = (kickoff || '').slice(0, 10).replace(/-/g, '');
+  const sb = await espnGet(ESPN_BASE, '/scoreboard', dateStr ? { dates: dateStr } : {});
+  const events = sb.events || [];
+  const ev = events.find((e) => {
+    const names = (e.competitions?.[0]?.competitors || []).map((c) => c.team?.displayName || c.team?.name || '');
+    return names.some((n) => matchesTeam(home, n)) && names.some((n) => matchesTeam(away, n));
   });
-  if (!fx) return { found: false, message: 'Ainda não achei dados oficiais desse jogo.' };
+  if (!ev) return { found: false, message: 'Ainda não achei dados oficiais desse jogo.' };
 
-  const fixtureId = fx.fixture.id;
-  const status = fx.fixture.status?.short;
-  const homeId = fx.teams.home.id, awayId = fx.teams.away.id;
+  const comp = ev.competitions[0];
+  const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
+  const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
+  const short = espnStatus(comp);
 
-  const [events, lineups, stats, h2h] = await Promise.all([
-    apiFootballGet('/fixtures/events', { fixture: fixtureId }).catch(() => []),
-    apiFootballGet('/fixtures/lineups', { fixture: fixtureId }).catch(() => []),
-    apiFootballGet('/fixtures/statistics', { fixture: fixtureId }).catch(() => []),
-    apiFootballGet('/fixtures/headtohead', { h2h: `${homeId}-${awayId}`, last: 6 }).catch(() => []),
-  ]);
+  const summary = await espnGet(ESPN_BASE, '/summary', { event: ev.id }).catch(() => ({}));
+
+  // Gols/cartões/subs a partir dos plays de cada jogador no roster
+  const allEvents = [];
+  for (const roster of summary.rosters || []) {
+    const teamName = roster.team?.displayName;
+    for (const player of roster.roster || []) {
+      for (const play of player.plays || []) {
+        if (!play.scoringPlay && !play.redCard && !play.yellowCard && !play.substitution) continue;
+        const min = parseInt((play.clock?.displayValue || '0').replace(/[^0-9]/g, '')) || 0;
+        allEvents.push({
+          minute: min, extra: null, team: teamName,
+          player: player.athlete?.displayName,
+          type: play.didScore ? 'Goal' : play.redCard || play.yellowCard ? 'Card' : 'subst',
+          detail: play.redCard ? 'Red Card' : play.yellowCard ? 'Yellow Card' : '',
+        });
+      }
+    }
+  }
+  allEvents.sort((a, b) => a.minute - b.minute);
+
+  const lineups = (summary.rosters || []).map((roster) => ({
+    team: roster.team?.displayName,
+    formation: roster.formation?.name || '',
+    coach: roster.coach?.[0]?.athlete?.displayName || '',
+    startXI: (roster.roster || []).filter((p) => p.starter)
+      .map((p) => ({ name: p.athlete?.displayName, number: p.jersey, pos: p.position?.abbreviation })),
+    subs: (roster.roster || []).filter((p) => !p.starter)
+      .map((p) => ({ name: p.athlete?.displayName, number: p.jersey, pos: p.position?.abbreviation })),
+  }));
+
+  const statistics = (summary.boxscore?.teams || []).map((t) => ({
+    team: t.team?.displayName,
+    items: (t.statistics || []).map((s) => ({ type: s.label, value: s.displayValue })),
+  }));
+
+  const venue = summary.gameInfo?.venue;
 
   return {
     found: true,
-    status: { short: status, long: fx.fixture.status?.long, elapsed: fx.fixture.status?.elapsed },
+    status: { short, long: comp.status?.type?.description || '', elapsed: comp.status?.displayClock || null },
     teams: {
-      home: { name: fx.teams.home.name, logo: fx.teams.home.logo },
-      away: { name: fx.teams.away.name, logo: fx.teams.away.logo },
+      home: { name: homeComp.team?.displayName || homeComp.team?.name, logo: homeComp.team?.logo },
+      away: { name: awayComp.team?.displayName || awayComp.team?.name, logo: awayComp.team?.logo },
     },
-    goals: fx.goals,
-    venue: fx.fixture.venue,
-    events: events.map((e) => ({
-      minute: e.time?.elapsed, extra: e.time?.extra, teamId: e.team?.id, team: e.team?.name,
-      player: e.player?.name, assist: e.assist?.name, type: e.type, detail: e.detail,
-    })),
-    lineups: lineups.map((l) => ({
-      teamId: l.team?.id, team: l.team?.name, formation: l.formation, coach: l.coach?.name,
-      startXI: (l.startXI || []).map((p) => ({ name: p.player?.name, number: p.player?.number, pos: p.player?.pos })),
-      subs: (l.substitutes || []).map((p) => ({ name: p.player?.name, number: p.player?.number, pos: p.player?.pos })),
-    })),
-    statistics: stats.map((s) => ({
-      teamId: s.team?.id, team: s.team?.name,
-      items: (s.statistics || []).map((x) => ({ type: x.type, value: x.value })),
-    })),
-    h2h: h2h
-      .filter((g) => g.fixture?.id !== fixtureId)
-      .slice(0, 6)
-      .map((g) => ({
-        date: g.fixture?.date, league: g.league?.name,
-        home: g.teams?.home?.name, away: g.teams?.away?.name,
-        gh: g.goals?.home, ga: g.goals?.away,
-      })),
-    homeId, awayId,
+    goals: { home: homeComp.score != null ? Number(homeComp.score) : null, away: awayComp.score != null ? Number(awayComp.score) : null },
+    venue: venue ? { name: venue.fullName || venue.name, city: venue.address?.city } : null,
+    events: allEvents,
+    lineups,
+    statistics,
+    h2h: [],
   };
 }
 
@@ -1003,7 +1037,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   );
 }
 
-/* ============================ Info do jogo (API-Football) ============================ */
+/* ============================ Info do jogo (ESPN) ============================ */
 const EV_ICON = (e) => {
   const t = (e.type || '').toLowerCase(), d = (e.detail || '').toLowerCase();
   if (t === 'goal') return d.includes('own') ? '⚽🔴' : d.includes('penalty') ? '⚽(P)' : '⚽';
@@ -1029,9 +1063,7 @@ function MatchInfo({ m }) {
   if (state.loading) return <div className="bl-mi"><div className="bl-mi-dim">⌛ Buscando dados do jogo…</div></div>;
   if (state.error) return (
     <div className="bl-mi"><div className="bl-mi-dim">
-      {state.kind === 'no_key'
-        ? '🔑 Os dados ao vivo ainda não foram ativados (falta a chave da API na Vercel).'
-        : `Não consegui carregar agora. ${state.error}`}
+      {`Não consegui carregar agora. ${state.error}`}
     </div></div>
   );
   const d = state.data;
@@ -1138,9 +1170,7 @@ function TabelaTab() {
       {state.error && (
         <div className="bl-panel" style={{ textAlign: 'center' }}>
           <p style={{ margin: 0 }}>
-            {state.kind === 'no_key'
-              ? '🔑 A tabela ao vivo precisa da chave da API configurada na Vercel (VITE_API_FOOTBALL_KEY).'
-              : `Não consegui carregar a tabela agora. ${state.error}`}
+            {`Não consegui carregar a tabela agora. ${state.error}`}
           </p>
         </div>
       )}
@@ -1176,7 +1206,7 @@ function TabelaTab() {
       ))}
 
       <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
-        Dados ao vivo via API-Football · os 2 primeiros de cada grupo (em verde) avançam.
+        Dados ao vivo via ESPN · os 2 primeiros de cada grupo (em verde) avançam.
       </p>
     </section>
   );
