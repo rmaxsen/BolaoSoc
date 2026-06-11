@@ -71,90 +71,157 @@ const rpc = async (fn, args) => {
 /* ============================================================ CSS ============================================================ */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
-:root{--campo:#0B2A1C;--campo2:#0E3322;--cal:#F4F0E4;--papel:#FBF8EF;--tinta:#15241C;--canarinho:#FFC629;--bandeira:#1E9E55;--royal:#2447C5;--apito:#D7263D;--cinza:#6E7A70;}
+:root{--campo:#0B2A1C;--campo2:#0E3322;--cal:#F4F0E4;--papel:#FBF8EF;--tinta:#15241C;--canarinho:#FFC629;--bandeira:#1E9E55;--royal:#2447C5;--apito:#D7263D;--cinza:#6E7A70;--board:#0d1f14;}
 *{box-sizing:border-box} html,body,#root{min-height:100%} body{margin:0}
 .bl-app{min-height:100vh;font-family:'Archivo',system-ui,-apple-system,sans-serif;color:var(--tinta);
-  background:radial-gradient(ellipse 120% 50% at 50% -10%, rgba(255,198,41,.10), transparent 60%),
-  repeating-linear-gradient(0deg, var(--campo) 0 90px, var(--campo2) 90px 180px);padding-bottom:96px;}
+  background:
+    radial-gradient(ellipse 160% 60% at 50% -5%, rgba(255,198,41,.14), transparent 55%),
+    radial-gradient(ellipse 90% 35% at 50% 105%, rgba(0,0,0,.45), transparent 65%),
+    repeating-linear-gradient(0deg, var(--campo) 0 90px, var(--campo2) 90px 180px);
+  padding-bottom:96px;}
 .bl-display{font-family:'Archivo Black','Archivo',sans-serif;letter-spacing:.5px}
 .bl-wrap{max-width:680px;margin:0 auto;padding:0 14px}
-.bl-hero{padding:26px 0 14px;text-align:center;color:var(--cal)}
-.bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:2px;border:3px solid var(--canarinho);
-  border-radius:18px 18px 50% 50%/18px 18px 40% 40%;padding:14px 26px 18px;background:rgba(0,0,0,.22);box-shadow:0 6px 0 rgba(0,0,0,.25);}
-.bl-crest .ano{color:var(--canarinho);font-size:13px;letter-spacing:4px}
-.bl-crest h1{margin:0;font-size:clamp(26px,7vw,40px);line-height:1;color:var(--cal);text-shadow:3px 3px 0 rgba(0,0,0,.35)}
-.bl-rules{margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px}
-.bl-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:5px 12px;color:var(--cal)}
+
+/* ── Hero ── */
+.bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal)}
+.bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:3px;border:3px solid var(--canarinho);
+  border-radius:20px 20px 50% 50%/20px 20px 42% 42%;padding:16px 34px 24px;
+  background:rgba(0,0,0,.30);
+  box-shadow:0 8px 0 rgba(0,0,0,.35),0 0 50px rgba(255,198,41,.15),inset 0 1px 0 rgba(255,198,41,.2);}
+.bl-crest .ano{color:var(--canarinho);font-size:12px;letter-spacing:5px;opacity:.9}
+.bl-crest h1{margin:2px 0 0;font-size:clamp(28px,7.5vw,46px);line-height:1;color:var(--cal);text-shadow:3px 3px 0 rgba(0,0,0,.45),0 0 30px rgba(255,198,41,.2)}
+.bl-rules{margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px}
+.bl-chip{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 14px;color:var(--cal);backdrop-filter:blur(4px)}
 .bl-chip b{color:var(--canarinho)}
-.bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.92);backdrop-filter:blur(6px);border-bottom:2px solid rgba(255,198,41,.5)}
+
+/* ── Tabs ── */
+.bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
-.bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:var(--cal);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
-.bl-tab:hover{background:rgba(255,255,255,.10)}
+.bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
+.bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
 .bl-tab[data-on="1"]{background:var(--canarinho);color:#241a00}
 .bl-tab:focus-visible{outline:3px solid var(--canarinho);outline-offset:-3px}
 .bl-badge{position:absolute;top:2px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--apito);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
-.bl-day{margin:22px 0 10px;display:flex;align-items:center;gap:12px;color:var(--cal)}
-.bl-day::before,.bl-day::after{content:"";flex:1;height:2px;background:rgba(244,240,228,.35);border-radius:2px}
-.bl-day span{font-weight:800;font-size:13px;text-transform:capitalize;letter-spacing:.5px}
-.bl-card{background:var(--papel);border:2px solid #20301F;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 0 rgba(0,0,0,.28);overflow:hidden;position:relative;transition:transform .2s,box-shadow .2s}
-.bl-card:hover{transform:translateY(-2px);box-shadow:0 8px 0 rgba(0,0,0,.30)}
-.bl-card-inner{border:2px dashed rgba(32,48,31,.25);border-radius:10px;margin:6px;padding:10px 10px 12px}
-.bl-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--cinza);font-weight:600;margin-bottom:8px;gap:8px}
-.bl-meta .grupo{background:var(--tinta);color:var(--cal);border-radius:6px;padding:2px 8px;font-weight:800;white-space:nowrap}
-.bl-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
-.bl-team{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
-.bl-team .fl{font-size:34px;line-height:1}
-.bl-team .nm{font-weight:800;font-size:13px;line-height:1.15}
-.bl-x{display:flex;align-items:center;gap:7px}
-.bl-score-in{width:48px;height:52px;text-align:center;font:inherit;font-weight:800;font-size:22px;border:2px solid #20301F;border-radius:10px;background:#fff;color:var(--tinta);transition:border-color .2s,background .2s}
-.bl-score-in:focus-visible{outline:3px solid var(--royal);outline-offset:1px}
-.bl-score-in:disabled{background:#EDE9DC;color:#8a8a7e}
-.bl-score-in.draft{border-color:var(--canarinho);background:#FFFBEE}
-.bl-vs{font-weight:900;color:var(--cinza)}
-.bl-final{display:flex;align-items:center;gap:6px;font-size:26px;font-weight:900}
-.bl-final small{font-size:10px;color:var(--cinza);display:block;text-align:center}
-.bl-stamp{position:absolute;top:8px;right:10px;transform:rotate(7deg);font-size:10px;font-weight:900;letter-spacing:1.5px;padding:3px 9px;border-radius:6px;border:2px solid currentColor;background:rgba(255,255,255,.85);pointer-events:none;}
+
+/* ── Day separator ── */
+.bl-day{margin:26px 0 12px;display:flex;align-items:center;gap:14px;color:var(--cal)}
+.bl-day::before,.bl-day::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(244,240,228,.35),transparent)}
+.bl-day span{font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:rgba(244,240,228,.65)}
+
+/* ── Match card ── */
+.bl-card{background:var(--papel);border:2px solid #20301F;border-radius:18px;margin-bottom:14px;
+  box-shadow:0 6px 0 rgba(0,0,0,.32),0 2px 24px rgba(0,0,0,.16);
+  overflow:hidden;position:relative;transition:transform .22s cubic-bezier(.2,.8,.3,1),box-shadow .22s}
+.bl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent 0%,var(--canarinho) 50%,transparent 100%);
+  opacity:0;transition:opacity .22s}
+.bl-card:hover{transform:translateY(-3px);box-shadow:0 10px 0 rgba(0,0,0,.32),0 6px 32px rgba(0,0,0,.22)}
+.bl-card:hover::before{opacity:1}
+.bl-card-inner{border:2px dashed rgba(32,48,31,.2);border-radius:12px;margin:7px;padding:12px 12px 14px}
+
+/* ── Card meta ── */
+.bl-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--cinza);font-weight:600;margin-bottom:12px;gap:8px}
+.bl-meta .grupo{background:var(--tinta);color:var(--cal);border-radius:999px;padding:3px 10px;font-weight:800;font-size:10px;letter-spacing:.6px;white-space:nowrap}
+
+/* ── Teams + scoreboard ── */
+.bl-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.bl-team{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.bl-team .fl{font-size:44px;line-height:1;filter:drop-shadow(0 3px 8px rgba(0,0,0,.25))}
+.bl-team .nm{font-weight:800;font-size:14px;line-height:1.2;max-width:90px}
+.bl-x{display:flex;align-items:center;background:var(--board);border-radius:14px;
+  border:2px solid rgba(255,198,41,.15);padding:6px 8px;
+  box-shadow:inset 0 2px 14px rgba(0,0,0,.55),0 2px 10px rgba(0,0,0,.3);gap:2px}
+.bl-score-in{width:52px;height:60px;text-align:center;font:inherit;font-weight:900;font-size:28px;
+  border:none;border-radius:8px;background:transparent;
+  color:rgba(255,255,255,.88);caret-color:var(--canarinho);
+  transition:color .15s,background .15s,text-shadow .15s}
+.bl-score-in::placeholder{color:rgba(255,255,255,.16)}
+.bl-score-in:focus-visible{outline:none;background:rgba(255,198,41,.09);border-radius:8px}
+.bl-score-in:disabled{color:rgba(255,255,255,.2)}
+.bl-score-in.has-value:disabled{color:rgba(255,255,255,.55)}
+.bl-score-in.draft{color:var(--canarinho);text-shadow:0 0 14px rgba(255,198,41,.5)}
+.bl-vs{font-weight:900;color:rgba(255,255,255,.18);font-size:14px;padding:0 3px;user-select:none}
+
+/* ── Result display ── */
+.bl-final{display:flex;align-items:center;gap:10px;font-size:30px;font-weight:900;
+  justify-content:center;background:rgba(0,0,0,.07);border-radius:12px;
+  padding:10px 24px;margin-top:12px;border:1px solid rgba(32,48,31,.1)}
+.bl-final small{font-size:10px;color:var(--cinza);display:block;text-align:center;line-height:1.4;font-weight:600}
+
+/* ── Stamp ── */
+.bl-stamp{position:absolute;top:10px;right:12px;transform:rotate(8deg);font-size:9px;font-weight:900;
+  letter-spacing:2px;padding:4px 10px;border-radius:4px;border:2.5px solid currentColor;
+  background:rgba(255,255,255,.92);pointer-events:none;text-transform:uppercase;
+  box-shadow:2px 2px 0 currentColor}
 .bl-stamp.aberto{color:var(--bandeira)} .bl-stamp.fechado{color:var(--apito)} .bl-stamp.fim{color:var(--royal)} .bl-stamp.breve{color:var(--cinza)}
-.bl-foot{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--cinza)}
+
+/* ── Card footer ── */
+.bl-foot{margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--cinza)}
 .bl-mini{border:0;background:none;font:inherit;font-size:12px;font-weight:700;color:var(--royal);cursor:pointer;padding:4px 0;text-decoration:underline}
 .bl-mini:focus-visible{outline:2px solid var(--royal);outline-offset:2px;border-radius:4px}
-.bl-pts{font-weight:900;border-radius:999px;padding:3px 10px;font-size:12px}
+.bl-pts{font-weight:900;border-radius:999px;padding:4px 13px;font-size:13px}
 .bl-pts.p3{background:var(--canarinho);color:#241a00} .bl-pts.p1{background:var(--bandeira);color:#fff} .bl-pts.p0{background:#d8d3c4;color:#5c5c52}
-.bl-picks{border-top:2px dashed rgba(32,48,31,.25);margin:8px 6px 6px;padding:8px 6px 4px;font-size:13px}
-.bl-picks .row{display:flex;justify-content:space-between;padding:4px 4px;border-radius:6px}
+
+/* ── Picks accordion ── */
+.bl-picks{border-top:1px solid rgba(32,48,31,.15);margin:10px 4px 4px;padding:10px 6px 4px;font-size:13px}
+.bl-picks .row{display:flex;justify-content:space-between;padding:5px 6px;border-radius:7px}
 .bl-picks .row:nth-child(odd){background:rgba(32,48,31,.05)}
 .bl-picks .me{font-weight:800}
-.bl-savebar{position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 14px 14px;background:linear-gradient(transparent, rgba(11,42,28,.95) 35%)}
+
+/* ── Save bar ── */
+.bl-savebar{position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 14px 18px;
+  background:linear-gradient(transparent,rgba(11,42,28,.97) 38%)}
 .bl-savebar-in{max-width:680px;margin:0 auto;display:flex;gap:10px}
-.bl-btn{border:2px solid #20301F;border-radius:12px;padding:13px 18px;font:inherit;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.3);transition:transform .08s,box-shadow .15s}
-.bl-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.bl-btn{border:2px solid #20301F;border-radius:14px;padding:15px 20px;font:inherit;font-weight:900;font-size:16px;
+  cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.32);transition:transform .08s,box-shadow .12s}
+.bl-btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
 .bl-btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .bl-btn.amarelo{background:var(--canarinho);color:#241a00;flex:1}
 .bl-btn.verde{background:var(--bandeira);color:#fff}
-.bl-btn:disabled{opacity:.55;cursor:not-allowed}
-.bl-filtros{display:flex;gap:6px;overflow-x:auto;padding:12px 2px 2px;scrollbar-width:none}
+.bl-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Filter pills ── */
+.bl-filtros{display:flex;gap:6px;overflow-x:auto;padding:14px 2px 2px;scrollbar-width:none}
 .bl-filtros::-webkit-scrollbar{display:none}
-.bl-f{border:1.5px solid rgba(244,240,228,.45);background:transparent;color:var(--cal);border-radius:999px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .18s,color .18s,border-color .18s}
+.bl-f{border:1.5px solid rgba(244,240,228,.35);background:transparent;color:rgba(244,240,228,.75);
+  border-radius:999px;padding:7px 16px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  transition:background .18s,color .18s,border-color .18s}
+.bl-f:hover{border-color:rgba(244,240,228,.65);color:var(--cal)}
 .bl-f[data-on="1"]{background:var(--cal);color:var(--tinta);border-color:var(--cal)}
 .bl-f:focus-visible{outline:3px solid var(--canarinho);outline-offset:2px}
-.bl-rank{background:var(--papel);border:2px solid #20301F;border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.28);overflow:hidden;margin-top:14px}
+
+/* ── Ranking ── */
+.bl-rank{background:var(--papel);border:2px solid #20301F;border-radius:18px;
+  box-shadow:0 6px 0 rgba(0,0,0,.3),0 2px 24px rgba(0,0,0,.14);overflow:hidden;margin-top:14px}
 .bl-rank table{width:100%;border-collapse:collapse;font-size:14px}
-.bl-rank th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--cinza);text-align:left;padding:12px 10px 6px}
-.bl-rank td{padding:11px 10px;border-top:1px solid rgba(32,48,31,.12)}
+.bl-rank th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cinza);
+  text-align:left;padding:14px 12px 8px}
+.bl-rank td{padding:12px 12px;border-top:1px solid rgba(32,48,31,.1)}
 .bl-rank .num{text-align:center;font-variant-numeric:tabular-nums}
-.bl-rank .tot{font-weight:900;font-size:17px;text-align:center}
-.bl-rank .rank-gold{background:rgba(255,198,41,.13)}
-.bl-rank .rank-silver{background:rgba(192,200,208,.11)}
-.bl-rank .rank-bronze{background:rgba(181,101,29,.09)}
-.bl-rank .rank-gold td:first-child{border-left:3px solid var(--canarinho)}
-.bl-rank .rank-silver td:first-child{border-left:3px solid #A0AAB4}
-.bl-rank .rank-bronze td:first-child{border-left:3px solid #B5651D}
-.bl-rank .rank-gold .tot{font-size:20px}
-.bl-medal{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px;transition:transform .2s}
+.bl-rank .tot{font-weight:900;font-size:18px;text-align:center}
+.bl-rank .rank-gold{background:linear-gradient(135deg,rgba(255,198,41,.18) 0%,rgba(255,198,41,.08) 100%)}
+.bl-rank .rank-gold td{padding:18px 12px}
+.bl-rank .rank-gold td:first-child{border-left:4px solid var(--canarinho)}
+.bl-rank .rank-gold .tot{font-size:26px}
+.bl-rank .rank-gold td:nth-child(2){font-size:16px}
+.bl-rank .rank-silver{background:rgba(192,200,210,.1)}
+.bl-rank .rank-silver td{padding:14px 12px}
+.bl-rank .rank-silver td:first-child{border-left:3px solid #A8B4BE}
+.bl-rank .rank-silver .tot{font-size:21px}
+.bl-rank .rank-bronze{background:rgba(181,101,29,.08)}
+.bl-rank .rank-bronze td:first-child{border-left:3px solid #C07040}
+.bl-rank .rank-bronze .tot{font-size:19px}
+.bl-medal{display:inline-flex;width:32px;height:32px;border-radius:50%;align-items:center;justify-content:center;
+  font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px;transition:transform .2s}
 .bl-medal:hover{transform:scale(1.15)}
-.bl-medal.m1{background:linear-gradient(135deg,#FFE08A,#E5A50A)} .bl-medal.m2{background:linear-gradient(135deg,#F0F0F0,#B9BDC4)}
-.bl-medal.m3{background:linear-gradient(135deg,#F0B98A,#B5651D)} .bl-medal.mx{background:#E8E3D3;font-size:12px}
-.bl-panel{background:var(--papel);border:2px solid #20301F;border-radius:16px;box-shadow:0 5px 0 rgba(0,0,0,.3);padding:20px;margin-top:18px}
+.bl-medal.m1{background:linear-gradient(135deg,#FFE566,#D4900A);box-shadow:0 2px 10px rgba(212,144,10,.45)}
+.bl-medal.m2{background:linear-gradient(135deg,#F4F4F4,#B2B9C2);box-shadow:0 2px 8px rgba(0,0,0,.22)}
+.bl-medal.m3{background:linear-gradient(135deg,#F2C090,#A85020);box-shadow:0 2px 8px rgba(168,80,32,.35)}
+.bl-medal.mx{background:#E8E3D3;font-size:12px}
+
+/* ── Panels / forms ── */
+.bl-panel{background:var(--papel);border:2px solid #20301F;border-radius:18px;
+  box-shadow:0 6px 0 rgba(0,0,0,.3),0 2px 20px rgba(0,0,0,.12);padding:22px;margin-top:18px}
 .bl-panel h2{margin:0 0 4px;font-size:20px}
 .bl-panel p.sub{margin:0 0 14px;font-size:13px;color:var(--cinza)}
 .bl-field{margin-bottom:12px}
@@ -171,24 +238,54 @@ const CSS = `
 .bl-okbtn{border:2px solid #20301F;background:var(--bandeira);color:#fff;border-radius:8px;height:42px;padding:0 12px;font:inherit;font-weight:900;cursor:pointer}
 .bl-okbtn:focus-visible{outline:3px solid var(--royal);outline-offset:2px}
 .bl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.bl-toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:60;background:var(--tinta);color:var(--cal);border:2px solid var(--canarinho);border-radius:12px;padding:11px 18px;font-weight:800;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:blpop .2s ease-out;max-width:90vw;text-align:center}
-.bl-skel{border-radius:8px;background:linear-gradient(90deg,rgba(32,48,31,.1) 25%,rgba(32,48,31,.2) 50%,rgba(32,48,31,.1) 75%);background-size:200% 100%}
-@keyframes blpop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ── Toast ── */
+.bl-toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);z-index:60;
+  background:var(--tinta);color:var(--cal);border:2px solid var(--canarinho);border-radius:14px;
+  padding:12px 22px;font-weight:800;font-size:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.55);animation:blpop .22s ease-out;max-width:90vw;text-align:center}
+
+/* ── Skeleton ── */
+.bl-skel{border-radius:8px;background:linear-gradient(90deg,rgba(32,48,31,.1) 25%,rgba(32,48,31,.22) 50%,rgba(32,48,31,.1) 75%);background-size:200% 100%}
+
+/* ── Keyframes ── */
+@keyframes blpop{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes bl-shimmer{from{background-position:-200% 0}to{background-position:200% 0}}
-@keyframes bl-stamp-in{0%{opacity:0;transform:rotate(22deg) scale(.5)}65%{transform:rotate(5deg) scale(1.08)}100%{opacity:1;transform:rotate(7deg) scale(1)}}
-@keyframes bl-pulse-glow{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,.3)}50%{box-shadow:0 4px 22px rgba(255,198,41,.65),0 4px 0 rgba(0,0,0,.3)}}
-@keyframes bl-slide-down{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
-@keyframes bl-fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes bl-stamp-in{0%{opacity:0;transform:rotate(24deg) scale(.45)}60%{transform:rotate(5deg) scale(1.1)}100%{opacity:1;transform:rotate(8deg) scale(1)}}
+@keyframes bl-pulse-glow{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.32)}50%{box-shadow:0 5px 30px rgba(255,198,41,.75),0 5px 0 rgba(0,0,0,.32)}}
+@keyframes bl-slide-down{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+@keyframes bl-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes bl-board-in{from{opacity:0;transform:scaleX(.92)}to{opacity:1;transform:none}}
+
+/* ── Motion ── */
 @media(prefers-reduced-motion:no-preference){
   .bl-skel{animation:bl-shimmer 1.6s linear infinite}
-  .bl-stamp{animation:bl-stamp-in .42s cubic-bezier(.2,.8,.4,1) both}
-  .bl-btn.pulse{animation:bl-pulse-glow 2.2s ease-in-out infinite}
-  .bl-picks{animation:bl-slide-down .25s ease-out both}
-  .bl-hero{animation:bl-fade-up .45s ease-out both}
+  .bl-stamp{animation:bl-stamp-in .45s cubic-bezier(.2,.85,.35,1) both}
+  .bl-btn.pulse{animation:bl-pulse-glow 2.4s ease-in-out infinite}
+  .bl-picks{animation:bl-slide-down .28s ease-out both}
+  .bl-hero{animation:bl-fade-up .5s ease-out both}
+  .bl-x{animation:bl-board-in .3s ease-out both}
 }
-@media(prefers-reduced-motion:reduce){.bl-toast{animation:none}.bl-btn:active{transform:none}.bl-card:hover{transform:none;box-shadow:0 4px 0 rgba(0,0,0,.28)}}
-@media(max-width:420px){.bl-team .nm{font-size:12px}.bl-score-in{width:44px}}
-@media(max-width:360px){.bl-team .fl{font-size:26px}.bl-card-inner{padding:8px 6px 10px}.bl-score-in{width:40px;height:46px;font-size:18px}.bl-crest{padding:10px 18px 14px}.bl-wrap{padding:0 10px}}
+@media(prefers-reduced-motion:reduce){
+  .bl-toast{animation:none}.bl-btn:active{transform:none}
+  .bl-card:hover{transform:none;box-shadow:0 6px 0 rgba(0,0,0,.32)}
+  .bl-card::before{display:none}
+}
+
+/* ── Breakpoints ── */
+@media(max-width:420px){
+  .bl-team .nm{font-size:12px;max-width:74px}
+  .bl-team .fl{font-size:36px}
+  .bl-score-in{width:46px;font-size:24px}
+}
+@media(max-width:360px){
+  .bl-team .fl{font-size:30px}
+  .bl-card-inner{padding:8px 8px 10px}
+  .bl-score-in{width:42px;height:54px;font-size:22px}
+  .bl-crest{padding:12px 22px 18px}
+  .bl-wrap{padding:0 10px}
+  .bl-x{padding:5px 6px}
+}
 `;
 
 /* ============================================================ App ============================================================ */
@@ -196,28 +293,28 @@ function SkeletonCard() {
   return (
     <div className="bl-card" style={{ cursor: 'default' }}>
       <div className="bl-card-inner">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div className="bl-skel" style={{ height: 20, width: '35%' }} />
-          <div className="bl-skel" style={{ height: 14, width: '42%' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div className="bl-skel" style={{ height: 22, width: '32%', borderRadius: 999 }} />
+          <div className="bl-skel" style={{ height: 14, width: '40%' }} />
         </div>
         <div className="bl-teams">
           <div className="bl-team">
-            <div className="bl-skel" style={{ width: 38, height: 38, borderRadius: '50%' }} />
-            <div className="bl-skel" style={{ width: 64, height: 13, marginTop: 6 }} />
+            <div className="bl-skel" style={{ width: 44, height: 44, borderRadius: '50%' }} />
+            <div className="bl-skel" style={{ width: 68, height: 14, marginTop: 8 }} />
           </div>
-          <div className="bl-x">
-            <div className="bl-skel" style={{ width: 48, height: 52, borderRadius: 10 }} />
-            <div style={{ width: 14 }} />
-            <div className="bl-skel" style={{ width: 48, height: 52, borderRadius: 10 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--board)', borderRadius: 14, padding: '6px 8px' }}>
+            <div className="bl-skel" style={{ width: 52, height: 60, borderRadius: 8, background: 'rgba(255,255,255,.07)', backgroundImage: 'none' }} />
+            <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'rgba(255,255,255,.08)' }} />
+            <div className="bl-skel" style={{ width: 52, height: 60, borderRadius: 8, background: 'rgba(255,255,255,.07)', backgroundImage: 'none' }} />
           </div>
           <div className="bl-team">
-            <div className="bl-skel" style={{ width: 38, height: 38, borderRadius: '50%' }} />
-            <div className="bl-skel" style={{ width: 64, height: 13, marginTop: 6 }} />
+            <div className="bl-skel" style={{ width: 44, height: 44, borderRadius: '50%' }} />
+            <div className="bl-skel" style={{ width: 68, height: 14, marginTop: 8 }} />
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-          <div className="bl-skel" style={{ height: 12, width: '45%' }} />
-          <div className="bl-skel" style={{ height: 12, width: '28%' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+          <div className="bl-skel" style={{ height: 13, width: '42%' }} />
+          <div className="bl-skel" style={{ height: 13, width: '26%' }} />
         </div>
       </div>
     </div>
@@ -553,6 +650,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const stamp = res ? ['fim', 'ENCERRADO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
+  const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
+  const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
   const others = users
     .map((u) => ({ slug: u.slug, name: u.name, pick: picksAll[u.slug]?.[m.id] }))
@@ -571,11 +670,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         <div className="bl-teams">
           <div className="bl-team"><span className="fl" aria-hidden>{flag(m.home)}</span><span className="nm">{m.home}</span></div>
           <div className="bl-x">
-            <input className={`bl-score-in${d && d.h != null ? ' draft' : ''}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
+            <input className={`bl-score-in${hCls}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
               disabled={!inWindow} value={valH ?? ''} placeholder="–"
               onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, ''))} />
             <span className="bl-vs">×</span>
-            <input className={`bl-score-in${d && d.a != null ? ' draft' : ''}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
+            <input className={`bl-score-in${aCls}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
               disabled={!inWindow} value={valA ?? ''} placeholder="–"
               onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
           </div>
@@ -646,7 +745,7 @@ function RankingTab({ ranking, meSlug, results }) {
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
                   <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
-                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
                   <td className="tot">{r.total}</td>
