@@ -88,14 +88,16 @@ const CSS = `
 .bl-chip b{color:var(--canarinho)}
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.92);backdrop-filter:blur(6px);border-bottom:2px solid rgba(255,198,41,.5)}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
-.bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:var(--cal);background:transparent;cursor:pointer;position:relative;transition:background .15s}
-.bl-tab:hover{background:rgba(255,255,255,.08)}
+.bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:var(--cal);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
+.bl-tab:hover{background:rgba(255,255,255,.10)}
 .bl-tab[data-on="1"]{background:var(--canarinho);color:#241a00}
+.bl-tab:focus-visible{outline:3px solid var(--canarinho);outline-offset:-3px}
 .bl-badge{position:absolute;top:2px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--apito);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 .bl-day{margin:22px 0 10px;display:flex;align-items:center;gap:12px;color:var(--cal)}
 .bl-day::before,.bl-day::after{content:"";flex:1;height:2px;background:rgba(244,240,228,.35);border-radius:2px}
 .bl-day span{font-weight:800;font-size:13px;text-transform:capitalize;letter-spacing:.5px}
-.bl-card{background:var(--papel);border:2px solid #20301F;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 0 rgba(0,0,0,.28);overflow:hidden;position:relative;}
+.bl-card{background:var(--papel);border:2px solid #20301F;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 0 rgba(0,0,0,.28);overflow:hidden;position:relative;transition:transform .2s,box-shadow .2s}
+.bl-card:hover{transform:translateY(-2px);box-shadow:0 8px 0 rgba(0,0,0,.30)}
 .bl-card-inner{border:2px dashed rgba(32,48,31,.25);border-radius:10px;margin:6px;padding:10px 10px 12px}
 .bl-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--cinza);font-weight:600;margin-bottom:8px;gap:8px}
 .bl-meta .grupo{background:var(--tinta);color:var(--cal);border-radius:6px;padding:2px 8px;font-weight:800;white-space:nowrap}
@@ -104,9 +106,10 @@ const CSS = `
 .bl-team .fl{font-size:34px;line-height:1}
 .bl-team .nm{font-weight:800;font-size:13px;line-height:1.15}
 .bl-x{display:flex;align-items:center;gap:7px}
-.bl-score-in{width:48px;height:52px;text-align:center;font:inherit;font-weight:800;font-size:22px;border:2px solid #20301F;border-radius:10px;background:#fff;color:var(--tinta);}
+.bl-score-in{width:48px;height:52px;text-align:center;font:inherit;font-weight:800;font-size:22px;border:2px solid #20301F;border-radius:10px;background:#fff;color:var(--tinta);transition:border-color .2s,background .2s}
 .bl-score-in:focus-visible{outline:3px solid var(--royal);outline-offset:1px}
 .bl-score-in:disabled{background:#EDE9DC;color:#8a8a7e}
+.bl-score-in.draft{border-color:var(--canarinho);background:#FFFBEE}
 .bl-vs{font-weight:900;color:var(--cinza)}
 .bl-final{display:flex;align-items:center;gap:6px;font-size:26px;font-weight:900}
 .bl-final small{font-size:10px;color:var(--cinza);display:block;text-align:center}
@@ -114,6 +117,7 @@ const CSS = `
 .bl-stamp.aberto{color:var(--bandeira)} .bl-stamp.fechado{color:var(--apito)} .bl-stamp.fim{color:var(--royal)} .bl-stamp.breve{color:var(--cinza)}
 .bl-foot{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--cinza)}
 .bl-mini{border:0;background:none;font:inherit;font-size:12px;font-weight:700;color:var(--royal);cursor:pointer;padding:4px 0;text-decoration:underline}
+.bl-mini:focus-visible{outline:2px solid var(--royal);outline-offset:2px;border-radius:4px}
 .bl-pts{font-weight:900;border-radius:999px;padding:3px 10px;font-size:12px}
 .bl-pts.p3{background:var(--canarinho);color:#241a00} .bl-pts.p1{background:var(--bandeira);color:#fff} .bl-pts.p0{background:#d8d3c4;color:#5c5c52}
 .bl-picks{border-top:2px dashed rgba(32,48,31,.25);margin:8px 6px 6px;padding:8px 6px 4px;font-size:13px}
@@ -122,7 +126,7 @@ const CSS = `
 .bl-picks .me{font-weight:800}
 .bl-savebar{position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 14px 14px;background:linear-gradient(transparent, rgba(11,42,28,.95) 35%)}
 .bl-savebar-in{max-width:680px;margin:0 auto;display:flex;gap:10px}
-.bl-btn{border:2px solid #20301F;border-radius:12px;padding:13px 18px;font:inherit;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.3);transition:transform .08s;}
+.bl-btn{border:2px solid #20301F;border-radius:12px;padding:13px 18px;font:inherit;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.3);transition:transform .08s,box-shadow .15s}
 .bl-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
 .bl-btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .bl-btn.amarelo{background:var(--canarinho);color:#241a00;flex:1}
@@ -130,15 +134,24 @@ const CSS = `
 .bl-btn:disabled{opacity:.55;cursor:not-allowed}
 .bl-filtros{display:flex;gap:6px;overflow-x:auto;padding:12px 2px 2px;scrollbar-width:none}
 .bl-filtros::-webkit-scrollbar{display:none}
-.bl-f{border:1.5px solid rgba(244,240,228,.45);background:transparent;color:var(--cal);border-radius:999px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.bl-f{border:1.5px solid rgba(244,240,228,.45);background:transparent;color:var(--cal);border-radius:999px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .18s,color .18s,border-color .18s}
 .bl-f[data-on="1"]{background:var(--cal);color:var(--tinta);border-color:var(--cal)}
+.bl-f:focus-visible{outline:3px solid var(--canarinho);outline-offset:2px}
 .bl-rank{background:var(--papel);border:2px solid #20301F;border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.28);overflow:hidden;margin-top:14px}
 .bl-rank table{width:100%;border-collapse:collapse;font-size:14px}
 .bl-rank th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--cinza);text-align:left;padding:12px 10px 6px}
 .bl-rank td{padding:11px 10px;border-top:1px solid rgba(32,48,31,.12)}
 .bl-rank .num{text-align:center;font-variant-numeric:tabular-nums}
 .bl-rank .tot{font-weight:900;font-size:17px;text-align:center}
-.bl-medal{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px}
+.bl-rank .rank-gold{background:rgba(255,198,41,.13)}
+.bl-rank .rank-silver{background:rgba(192,200,208,.11)}
+.bl-rank .rank-bronze{background:rgba(181,101,29,.09)}
+.bl-rank .rank-gold td:first-child{border-left:3px solid var(--canarinho)}
+.bl-rank .rank-silver td:first-child{border-left:3px solid #A0AAB4}
+.bl-rank .rank-bronze td:first-child{border-left:3px solid #B5651D}
+.bl-rank .rank-gold .tot{font-size:20px}
+.bl-medal{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px;transition:transform .2s}
+.bl-medal:hover{transform:scale(1.15)}
 .bl-medal.m1{background:linear-gradient(135deg,#FFE08A,#E5A50A)} .bl-medal.m2{background:linear-gradient(135deg,#F0F0F0,#B9BDC4)}
 .bl-medal.m3{background:linear-gradient(135deg,#F0B98A,#B5651D)} .bl-medal.mx{background:#E8E3D3;font-size:12px}
 .bl-panel{background:var(--papel);border:2px solid #20301F;border-radius:16px;box-shadow:0 5px 0 rgba(0,0,0,.3);padding:20px;margin-top:18px}
@@ -151,18 +164,66 @@ const CSS = `
 .bl-erro{background:#FBE3E6;border:1.5px solid var(--apito);color:#8d1626;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
 .bl-info{background:#E7F0E9;border:1.5px solid var(--bandeira);color:#14502e;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
 .bl-link{border:0;background:none;font:inherit;color:var(--royal);font-weight:800;cursor:pointer;text-decoration:underline;padding:0}
+.bl-link:focus-visible{outline:2px solid var(--canarinho);outline-offset:2px;border-radius:2px}
 .bl-admin-row{display:grid;grid-template-columns:1fr 56px 14px 56px auto;gap:6px;align-items:center;padding:9px 0;border-top:1px dashed rgba(32,48,31,.2);font-size:13px}
 .bl-admin-row .t{font-weight:700;line-height:1.2}
 .bl-admin-row input{width:56px;height:42px;text-align:center;font:inherit;font-weight:800;font-size:17px;border:2px solid #20301F;border-radius:8px}
 .bl-okbtn{border:2px solid #20301F;background:var(--bandeira);color:#fff;border-radius:8px;height:42px;padding:0 12px;font:inherit;font-weight:900;cursor:pointer}
+.bl-okbtn:focus-visible{outline:3px solid var(--royal);outline-offset:2px}
 .bl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .bl-toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:60;background:var(--tinta);color:var(--cal);border:2px solid var(--canarinho);border-radius:12px;padding:11px 18px;font-weight:800;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:blpop .2s ease-out;max-width:90vw;text-align:center}
+.bl-skel{border-radius:8px;background:linear-gradient(90deg,rgba(32,48,31,.1) 25%,rgba(32,48,31,.2) 50%,rgba(32,48,31,.1) 75%);background-size:200% 100%}
 @keyframes blpop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
-@media (prefers-reduced-motion: reduce){.bl-toast{animation:none}.bl-btn:active{transform:none}}
-@media (max-width:420px){.bl-team .nm{font-size:12px}.bl-score-in{width:44px}}
+@keyframes bl-shimmer{from{background-position:-200% 0}to{background-position:200% 0}}
+@keyframes bl-stamp-in{0%{opacity:0;transform:rotate(22deg) scale(.5)}65%{transform:rotate(5deg) scale(1.08)}100%{opacity:1;transform:rotate(7deg) scale(1)}}
+@keyframes bl-pulse-glow{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,.3)}50%{box-shadow:0 4px 22px rgba(255,198,41,.65),0 4px 0 rgba(0,0,0,.3)}}
+@keyframes bl-slide-down{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@keyframes bl-fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:no-preference){
+  .bl-skel{animation:bl-shimmer 1.6s linear infinite}
+  .bl-stamp{animation:bl-stamp-in .42s cubic-bezier(.2,.8,.4,1) both}
+  .bl-btn.pulse{animation:bl-pulse-glow 2.2s ease-in-out infinite}
+  .bl-picks{animation:bl-slide-down .25s ease-out both}
+  .bl-hero{animation:bl-fade-up .45s ease-out both}
+}
+@media(prefers-reduced-motion:reduce){.bl-toast{animation:none}.bl-btn:active{transform:none}.bl-card:hover{transform:none;box-shadow:0 4px 0 rgba(0,0,0,.28)}}
+@media(max-width:420px){.bl-team .nm{font-size:12px}.bl-score-in{width:44px}}
+@media(max-width:360px){.bl-team .fl{font-size:26px}.bl-card-inner{padding:8px 6px 10px}.bl-score-in{width:40px;height:46px;font-size:18px}.bl-crest{padding:10px 18px 14px}.bl-wrap{padding:0 10px}}
 `;
 
 /* ============================================================ App ============================================================ */
+function SkeletonCard() {
+  return (
+    <div className="bl-card" style={{ cursor: 'default' }}>
+      <div className="bl-card-inner">
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div className="bl-skel" style={{ height: 20, width: '35%' }} />
+          <div className="bl-skel" style={{ height: 14, width: '42%' }} />
+        </div>
+        <div className="bl-teams">
+          <div className="bl-team">
+            <div className="bl-skel" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+            <div className="bl-skel" style={{ width: 64, height: 13, marginTop: 6 }} />
+          </div>
+          <div className="bl-x">
+            <div className="bl-skel" style={{ width: 48, height: 52, borderRadius: 10 }} />
+            <div style={{ width: 14 }} />
+            <div className="bl-skel" style={{ width: 48, height: 52, borderRadius: 10 }} />
+          </div>
+          <div className="bl-team">
+            <div className="bl-skel" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+            <div className="bl-skel" style={{ width: 64, height: 13, marginTop: 6 }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+          <div className="bl-skel" style={{ height: 12, width: '45%' }} />
+          <div className="bl-skel" style={{ height: 12, width: '28%' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [boot, setBoot] = useState('loading');
   const [me, setMe] = useState(null); // {slug,name,pin,isAdmin}
@@ -298,10 +359,22 @@ export default function App() {
 
   /* ============================ RENDER ============================ */
   if (boot === 'loading') {
-    return (<div className="bl-app"><style>{CSS}</style>
-      <div className="bl-wrap" style={{ paddingTop: 120, textAlign: 'center', color: 'var(--cal)' }}>
-        <div className="bl-display" style={{ fontSize: 28 }}>⚽ Aquecendo no gramado…</div>
-      </div></div>);
+    return (
+      <div className="bl-app">
+        <style>{CSS}</style>
+        <header className="bl-hero">
+          <div className="bl-crest">
+            <span className="ano bl-display">★ 2026 ★</span>
+            <h1 className="bl-display">BOLÃO DA COPA</h1>
+            <span style={{ fontSize: 11, opacity: .85 }}>EUA · México · Canadá</span>
+          </div>
+        </header>
+        <div className="bl-wrap" style={{ paddingTop: 8 }}>
+          <div className="bl-day"><span>carregando…</span></div>
+          <SkeletonCard /><SkeletonCard /><SkeletonCard />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -357,7 +430,7 @@ export default function App() {
           {tab === 'jogos' && pendingDraft.length > 0 && (
             <div className="bl-savebar">
               <div className="bl-savebar-in">
-                <button className="bl-btn amarelo" disabled={busy} onClick={savePicks}>
+                <button className={`bl-btn amarelo${!busy ? ' pulse' : ''}`} disabled={busy} onClick={savePicks}>
                   {busy ? 'Salvando…' : `Salvar ${pendingDraft.length} palpite${pendingDraft.length > 1 ? 's' : ''} ⚽`}
                 </button>
               </div>
@@ -498,11 +571,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         <div className="bl-teams">
           <div className="bl-team"><span className="fl" aria-hidden>{flag(m.home)}</span><span className="nm">{m.home}</span></div>
           <div className="bl-x">
-            <input className="bl-score-in" aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
+            <input className={`bl-score-in${d && d.h != null ? ' draft' : ''}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
               disabled={!inWindow} value={valH ?? ''} placeholder="–"
               onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, ''))} />
             <span className="bl-vs">×</span>
-            <input className="bl-score-in" aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
+            <input className={`bl-score-in${d && d.a != null ? ' draft' : ''}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
               disabled={!inWindow} value={valA ?? ''} placeholder="–"
               onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
           </div>
@@ -568,15 +641,18 @@ function RankingTab({ ranking, meSlug, results }) {
           </thead>
           <tbody>
             {ranking.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
-            {ranking.map((r, i) => (
-              <tr key={r.slug} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
-                <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
-                <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
-                <td className="num">{r.exatos}</td>
-                <td className="num">{r.vencedores}</td>
-                <td className="tot">{r.total}</td>
-              </tr>
-            ))}
+            {ranking.map((r, i) => {
+              const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+              return (
+                <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
+                  <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td className="num">{r.exatos}</td>
+                  <td className="num">{r.vencedores}</td>
+                  <td className="tot">{r.total}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
