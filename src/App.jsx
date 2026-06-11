@@ -103,13 +103,119 @@ const rpc = async (fn, args) => {
   return data;
 };
 
-/* Fetch das funções serverless (/api/*) — proxy seguro da API-Football. */
-const apiFetch = async (path) => {
-  const r = await fetch(path);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.message || 'Erro ao buscar dados.'); e.kind = j.error; throw e; }
-  return j;
+/* ── API-Football (chamada direta do browser com chave VITE_) ── */
+const API_BASE = 'https://v3.football.api-sports.io';
+const WC_LEAGUE = 1;
+const WC_SEASON = 2026;
+
+const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const TEAM_EN = {
+  'México': ['Mexico'], 'África do Sul': ['South Africa'], 'Coreia do Sul': ['South Korea', 'Korea Republic'],
+  'Rep. Tcheca': ['Czech Republic', 'Czechia'], 'Canadá': ['Canada'], 'Bósnia e Herzegovina': ['Bosnia and Herzegovina', 'Bosnia'],
+  'Catar': ['Qatar'], 'Suíça': ['Switzerland'], 'Brasil': ['Brazil'], 'Marrocos': ['Morocco'], 'Haiti': ['Haiti'],
+  'Escócia': ['Scotland'], 'Estados Unidos': ['USA', 'United States'], 'Paraguai': ['Paraguay'], 'Austrália': ['Australia'],
+  'Turquia': ['Turkey', 'Turkiye', 'Türkiye'], 'Alemanha': ['Germany'], 'Curaçao': ['Curacao'],
+  'Costa do Marfim': ["Ivory Coast", "Cote d'Ivoire"], 'Equador': ['Ecuador'], 'Holanda': ['Netherlands'],
+  'Japão': ['Japan'], 'Suécia': ['Sweden'], 'Tunísia': ['Tunisia'], 'Bélgica': ['Belgium'], 'Egito': ['Egypt'],
+  'Irã': ['Iran'], 'Nova Zelândia': ['New Zealand'], 'Espanha': ['Spain'], 'Cabo Verde': ['Cape Verde Islands', 'Cape Verde'],
+  'Arábia Saudita': ['Saudi Arabia'], 'Uruguai': ['Uruguay'], 'França': ['France'], 'Senegal': ['Senegal'],
+  'Iraque': ['Iraq'], 'Noruega': ['Norway'], 'Argentina': ['Argentina'], 'Argélia': ['Algeria'], 'Áustria': ['Austria'],
+  'Jordânia': ['Jordan'], 'Portugal': ['Portugal'], 'RD Congo': ['DR Congo', 'Congo DR'], 'Uzbequistão': ['Uzbekistan'],
+  'Colômbia': ['Colombia'], 'Inglaterra': ['England'], 'Croácia': ['Croatia'], 'Panamá': ['Panama'], 'Gana': ['Ghana'],
 };
+
+function matchesTeam(ptName, apiName) {
+  const a = norm(apiName);
+  if (!a) return false;
+  const cands = [ptName, ...(TEAM_EN[ptName] || [])].map(norm);
+  return cands.some((c) => c && (c === a || a.includes(c) || c.includes(a)));
+}
+
+async function apiFootballGet(path, params = {}) {
+  const key = import.meta.env.VITE_API_FOOTBALL_KEY;
+  if (!key) { const e = new Error('A chave da API não está configurada (VITE_API_FOOTBALL_KEY).'); e.kind = 'no_key'; throw e; }
+  const url = new URL(API_BASE + path);
+  Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, String(v)); });
+  const r = await fetch(url.toString(), { headers: { 'x-apisports-key': key } });
+  if (!r.ok) { const e = new Error(`API retornou ${r.status}`); e.kind = 'api'; throw e; }
+  const j = await r.json();
+  if (j.errors && Object.keys(j.errors).length) { const e = new Error(JSON.stringify(j.errors)); e.kind = 'api'; throw e; }
+  return j.response || [];
+}
+
+async function fetchStandings() {
+  const data = await apiFootballGet('/standings', { league: WC_LEAGUE, season: WC_SEASON });
+  const league = data[0]?.league;
+  const groups = (league?.standings || []).map((g) => ({
+    group: g[0]?.group || '',
+    rows: g.map((t) => ({
+      rank: t.rank, team: t.team?.name, logo: t.team?.logo,
+      points: t.points, played: t.all?.played, win: t.all?.win,
+      draw: t.all?.draw, lose: t.all?.lose,
+      gf: t.all?.goals?.for, ga: t.all?.goals?.against, gd: t.goalsDiff,
+      form: t.form, desc: t.description,
+    })),
+  }));
+  return { updated: new Date().toISOString(), groups };
+}
+
+const LIVE_STATUS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT']);
+
+async function fetchMatchInfo(home, away, date) {
+  const day = (date || '').slice(0, 10);
+  let fixtures = await apiFootballGet('/fixtures', { league: WC_LEAGUE, season: WC_SEASON, date: day || undefined });
+  if (!fixtures.length && !day) fixtures = await apiFootballGet('/fixtures', { league: WC_LEAGUE, season: WC_SEASON });
+  const fx = fixtures.find((f) => {
+    const h = f.teams?.home?.name, a = f.teams?.away?.name;
+    return (matchesTeam(home, h) && matchesTeam(away, a)) || (matchesTeam(home, a) && matchesTeam(away, h));
+  });
+  if (!fx) return { found: false, message: 'Ainda não achei dados oficiais desse jogo.' };
+
+  const fixtureId = fx.fixture.id;
+  const status = fx.fixture.status?.short;
+  const homeId = fx.teams.home.id, awayId = fx.teams.away.id;
+
+  const [events, lineups, stats, h2h] = await Promise.all([
+    apiFootballGet('/fixtures/events', { fixture: fixtureId }).catch(() => []),
+    apiFootballGet('/fixtures/lineups', { fixture: fixtureId }).catch(() => []),
+    apiFootballGet('/fixtures/statistics', { fixture: fixtureId }).catch(() => []),
+    apiFootballGet('/fixtures/headtohead', { h2h: `${homeId}-${awayId}`, last: 6 }).catch(() => []),
+  ]);
+
+  return {
+    found: true,
+    status: { short: status, long: fx.fixture.status?.long, elapsed: fx.fixture.status?.elapsed },
+    teams: {
+      home: { name: fx.teams.home.name, logo: fx.teams.home.logo },
+      away: { name: fx.teams.away.name, logo: fx.teams.away.logo },
+    },
+    goals: fx.goals,
+    venue: fx.fixture.venue,
+    events: events.map((e) => ({
+      minute: e.time?.elapsed, extra: e.time?.extra, teamId: e.team?.id, team: e.team?.name,
+      player: e.player?.name, assist: e.assist?.name, type: e.type, detail: e.detail,
+    })),
+    lineups: lineups.map((l) => ({
+      teamId: l.team?.id, team: l.team?.name, formation: l.formation, coach: l.coach?.name,
+      startXI: (l.startXI || []).map((p) => ({ name: p.player?.name, number: p.player?.number, pos: p.player?.pos })),
+      subs: (l.substitutes || []).map((p) => ({ name: p.player?.name, number: p.player?.number, pos: p.player?.pos })),
+    })),
+    statistics: stats.map((s) => ({
+      teamId: s.team?.id, team: s.team?.name,
+      items: (s.statistics || []).map((x) => ({ type: x.type, value: x.value })),
+    })),
+    h2h: h2h
+      .filter((g) => g.fixture?.id !== fixtureId)
+      .slice(0, 6)
+      .map((g) => ({
+        date: g.fixture?.date, league: g.league?.name,
+        home: g.teams?.home?.name, away: g.teams?.away?.name,
+        gh: g.goals?.home, ga: g.goals?.away,
+      })),
+    homeId, awayId,
+  };
+}
 
 /* ============================================================ CSS ============================================================ */
 const CSS = `
@@ -914,7 +1020,7 @@ function MatchInfo({ m }) {
     let alive = true;
     setState({ loading: true });
     const q = `?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&date=${encodeURIComponent(m.kickoff)}`;
-    apiFetch('/api/match' + q)
+    fetchMatchInfo(m.home, m.away, m.kickoff)
       .then((d) => { if (alive) setState({ loading: false, data: d }); })
       .catch((e) => { if (alive) setState({ loading: false, error: e.message, kind: e.kind }); });
     return () => { alive = false; };
@@ -1014,7 +1120,7 @@ function TabelaTab() {
 
   const load = useCallback(() => {
     setState({ loading: true });
-    apiFetch('/api/standings')
+    fetchStandings()
       .then((d) => setState({ loading: false, data: d }))
       .catch((e) => setState({ loading: false, error: e.message, kind: e.kind }));
   }, []);
