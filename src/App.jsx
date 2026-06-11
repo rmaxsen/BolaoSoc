@@ -30,6 +30,41 @@ const FLAGS = {
 const flag = (t) => FLAGS[t] || '⚽';
 const PHASES_KO = ['32 avos de final', 'Oitavas de final', 'Quartas de final', 'Semifinal', '3º lugar', 'Final'];
 
+/* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
+const FLAG_CODES = {
+  'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr', 'Rep. Tcheca': 'cz',
+  'Canadá': 'ca', 'Bósnia e Herzegovina': 'ba', 'Catar': 'qa', 'Suíça': 'ch',
+  'Brasil': 'br', 'Marrocos': 'ma', 'Haiti': 'ht', 'Escócia': 'gb-sct',
+  'Estados Unidos': 'us', 'Paraguai': 'py', 'Austrália': 'au', 'Turquia': 'tr',
+  'Alemanha': 'de', 'Curaçao': 'cw', 'Costa do Marfim': 'ci', 'Equador': 'ec',
+  'Holanda': 'nl', 'Japão': 'jp', 'Suécia': 'se', 'Tunísia': 'tn',
+  'Bélgica': 'be', 'Egito': 'eg', 'Irã': 'ir', 'Nova Zelândia': 'nz',
+  'Espanha': 'es', 'Cabo Verde': 'cv', 'Arábia Saudita': 'sa', 'Uruguai': 'uy',
+  'França': 'fr', 'Senegal': 'sn', 'Iraque': 'iq', 'Noruega': 'no',
+  'Argentina': 'ar', 'Argélia': 'dz', 'Áustria': 'at', 'Jordânia': 'jo',
+  'Portugal': 'pt', 'RD Congo': 'cd', 'Uzbequistão': 'uz', 'Colômbia': 'co',
+  'Inglaterra': 'gb-eng', 'Croácia': 'hr', 'Panamá': 'pa', 'Gana': 'gh',
+};
+
+/* Componente de bandeira: imagem real com fallback pro emoji se faltar código. */
+function Flag({ team, size = 44 }) {
+  const code = FLAG_CODES[team];
+  if (!code) return <span style={{ fontSize: size * 0.78, lineHeight: 1 }} aria-hidden>{flag(team)}</span>;
+  const w = Math.round(size);
+  return (
+    <img
+      src={`https://flagcdn.com/h${size >= 40 ? 60 : 40}/${code}.png`}
+      srcSet={`https://flagcdn.com/h${size >= 40 ? 120 : 80}/${code}.png 2x`}
+      alt={`Bandeira ${team}`} width={w} height={Math.round(w * 0.68)} loading="lazy"
+      style={{ borderRadius: 4, objectFit: 'cover', boxShadow: '0 2px 6px rgba(0,0,0,.28)', display: 'inline-block', verticalAlign: 'middle' }}
+    />
+  );
+}
+
+/* Campeão: palpite extra (5 pts), fecha em 21/06/2026 23:59 Brasília. */
+const CHAMPION_PTS = 5;
+const CHAMPION_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
+
 /* ---------- Util ---------- */
 const TZ = 'America/Sao_Paulo';
 const fmtDay = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: 'long' });
@@ -286,6 +321,23 @@ const CSS = `
   .bl-wrap{padding:0 10px}
   .bl-x{padding:5px 6px}
 }
+
+/* ── Champion pick card ── */
+.bl-champ{background:linear-gradient(135deg,#1a3024,#0f2418);border:2px solid var(--canarinho);
+  border-radius:18px;margin:14px 0;padding:18px 18px 20px;color:var(--cal);position:relative;overflow:hidden;
+  box-shadow:0 6px 0 rgba(0,0,0,.32),0 0 40px rgba(255,198,41,.12)}
+.bl-champ h3{margin:0 0 2px;font-size:18px;color:var(--canarinho);display:flex;align-items:center;gap:8px}
+.bl-champ .sub{margin:0 0 14px;font-size:12.5px;color:rgba(244,240,228,.72);line-height:1.5}
+.bl-champ select{width:100%;border:2px solid rgba(255,198,41,.5);border-radius:12px;padding:13px 12px;
+  font:inherit;font-size:16px;background:#0d1f14;color:var(--cal);font-weight:700}
+.bl-champ select:focus-visible{outline:3px solid var(--canarinho);outline-offset:1px}
+.bl-champ .cur{margin-top:12px;font-size:13px;color:rgba(244,240,228,.85);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bl-champ .cur b{color:var(--canarinho)}
+.bl-champ .lock{margin-top:12px;font-size:13px;color:rgba(244,240,228,.85)}
+.bl-champ-badge{display:inline-flex;align-items:center;gap:5px;background:var(--canarinho);color:#241a00;
+  font-weight:900;font-size:11px;border-radius:999px;padding:3px 10px}
+.bl-rank .champ-col{font-size:11px;text-align:center}
+.bl-champ-hit{color:var(--canarinho);font-weight:900}
 `;
 
 /* ============================================================ App ============================================================ */
@@ -328,6 +380,8 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [picksAll, setPicksAll] = useState({});
   const [results, setResults] = useState({});
+  const [champPicks, setChampPicks] = useState({}); // slug -> team
+  const [worldChampion, setWorldChampion] = useState(null);
   const [draft, setDraft] = useState({});
   const [tab, setTab] = useState('jogos');
   const [filtro, setFiltro] = useState('todos');
@@ -360,6 +414,17 @@ export default function App() {
     const rs = {};
     (rq.data || []).forEach((r) => { rs[r.match_id] = r; });
     setResults(rs);
+    // Campeão: tabelas podem ainda não existir (antes de rodar a migração v2) — toleramos erro.
+    const [cq, tq] = await Promise.all([
+      supabase.from('champion_picks').select('*'),
+      supabase.from('tournament').select('champion').eq('id', 1).maybeSingle(),
+    ]);
+    if (!cq.error) {
+      const cp = {};
+      (cq.data || []).forEach((c) => { cp[c.user_slug] = c.team; });
+      setChampPicks(cp);
+    }
+    if (!tq.error) setWorldChampion(tq.data?.champion ?? null);
   }, []);
 
   useEffect(() => {
@@ -430,6 +495,16 @@ export default function App() {
     } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
+  async function saveChampion(team) {
+    if (!me || !team) return;
+    setBusy(true);
+    try {
+      await rpc('set_champion', { p_name: me.name, p_pin: me.pin, p_team: team });
+      await loadAll();
+      say(`Campeão palpitado: ${team} 🏆`);
+    } catch (e) { say(e.message); } finally { setBusy(false); }
+  }
+
   /* ---------- ranking ---------- */
   const ranking = useMemo(() => {
     const rows = users.map((u) => {
@@ -439,11 +514,14 @@ export default function App() {
         const p = points(picksAll[u.slug]?.[m.id], res); if (p == null) continue;
         total += p; if (p === 3) exatos++; if (p === 1) vencedores++;
       }
-      return { slug: u.slug, name: u.name, total, exatos, vencedores };
+      const champTeam = champPicks[u.slug] || null;
+      const champHit = worldChampion && champTeam === worldChampion;
+      if (champHit) total += CHAMPION_PTS;
+      return { slug: u.slug, name: u.name, total, exatos, vencedores, champTeam, champHit };
     });
     rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
     return rows;
-  }, [users, matches, results, picksAll]);
+  }, [users, matches, results, picksAll, champPicks, worldChampion]);
 
   const pendentes = useMemo(() => {
     if (!me) return 0;
@@ -515,11 +593,13 @@ export default function App() {
             {tab === 'jogos' && (
               <JogosTab matches={matches} me={me} users={users} now={now}
                 picksAll={picksAll} myPicks={myPicks} draft={draft} results={results}
-                filtro={filtro} setFiltro={setFiltro} setDraftScore={setDraftScore} />
+                filtro={filtro} setFiltro={setFiltro} setDraftScore={setDraftScore}
+                myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy} />
             )}
-            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
+                worldChampion={worldChampion}
                 onDone={async (msg) => { await loadAll(); say(msg); }} onError={(e) => say(e)} busy={busy} setBusy={setBusy} />
             )}
           </main>
@@ -583,8 +663,44 @@ function AuthScreen({ onSubmit, busy, firstUser }) {
   );
 }
 
+/* ============================ Campeão ============================ */
+function ChampionCard({ myChampion, onSave, busy }) {
+  const [sel, setSel] = useState(myChampion || '');
+  const open = Date.now() < CHAMPION_DEADLINE;
+  const teams = Object.keys(FLAGS).sort((a, b) => a.localeCompare(b));
+  const deadlineTxt = new Date(CHAMPION_DEADLINE).toLocaleString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="bl-champ">
+      <h3 className="bl-display">🏆 Palpite de campeão <span className="bl-champ-badge">+{CHAMPION_PTS} pts</span></h3>
+      <p className="sub">Quem levanta a taça? Acertar vale <b>{CHAMPION_PTS} pontos</b> no fim. Dá pra trocar até <b>{deadlineTxt}</b>.</p>
+      {open ? (
+        <>
+          <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Escolha o campeão">
+            <option value="">— escolher seleção —</option>
+            {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <div className="cur">
+            {myChampion
+              ? <>Seu palpite atual: <Flag team={myChampion} size={18} /> <b>{myChampion}</b></>
+              : <span style={{ color: 'rgba(244,240,228,.6)' }}>Você ainda não palpitou o campeão.</span>}
+            <button className="bl-btn amarelo" style={{ flex: 'none', padding: '8px 16px', fontSize: 13, marginLeft: 'auto' }}
+              disabled={busy || !sel || sel === myChampion} onClick={() => onSave(sel)}>
+              {sel === myChampion ? 'Salvo' : 'Salvar campeão'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="lock">
+          🔒 O palpite de campeão já fechou.{' '}
+          {myChampion ? <>Você escolheu <Flag team={myChampion} size={18} /> <b style={{ color: 'var(--canarinho)' }}>{myChampion}</b>.</> : 'Você não chegou a palpitar.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================ Jogos ============================ */
-function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore }) {
+function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
@@ -608,6 +724,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
 
   return (
     <section aria-label="Jogos">
+      <ChampionCard myChampion={myChampion} onSave={onSaveChampion} busy={busy} />
       <div className="bl-filtros" role="tablist" aria-label="Filtrar jogos">
         {[['todos', 'Todos'], ['abertos', 'Abertos'], ['pendentes', 'Sem palpite'], ['mata', 'Mata-mata']].map(([k, l]) => (
           <button key={k} className="bl-f" data-on={filtro === k ? 1 : 0} onClick={() => setFiltro(k)}>{l}</button>
@@ -668,7 +785,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         </div>
 
         <div className="bl-teams">
-          <div className="bl-team"><span className="fl" aria-hidden>{flag(m.home)}</span><span className="nm">{m.home}</span></div>
+          <div className="bl-team"><span className="fl"><Flag team={m.home} /></span><span className="nm">{m.home}</span></div>
           <div className="bl-x">
             <input className={`bl-score-in${hCls}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
               disabled={!inWindow} value={valH ?? ''} placeholder="–"
@@ -678,7 +795,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
               disabled={!inWindow} value={valA ?? ''} placeholder="–"
               onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
           </div>
-          <div className="bl-team"><span className="fl" aria-hidden>{flag(m.away)}</span><span className="nm">{m.away}</span></div>
+          <div className="bl-team"><span className="fl"><Flag team={m.away} /></span><span className="nm">{m.away}</span></div>
         </div>
 
         {res && (
@@ -724,7 +841,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
 }
 
 /* ============================ Ranking ============================ */
-function RankingTab({ ranking, meSlug, results }) {
+function RankingTab({ ranking, meSlug, results, worldChampion }) {
   const encerrados = Object.keys(results || {}).length;
   return (
     <section aria-label="Classificação">
@@ -735,11 +852,12 @@ function RankingTab({ ranking, meSlug, results }) {
               <th>#</th><th>Participante</th>
               <th className="num" title="Placares exatos">⭐ Exatos</th>
               <th className="num" title="Acertou vencedor/empate">✓ Venc.</th>
+              <th className="champ-col" title="Palpite de campeão">🏆 Campeão</th>
               <th className="num">Pts</th>
             </tr>
           </thead>
           <tbody>
-            {ranking.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
+            {ranking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
             {ranking.map((r, i) => {
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
@@ -748,6 +866,9 @@ function RankingTab({ ranking, meSlug, results }) {
                   <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
+                  <td className={`champ-col ${r.champHit ? 'bl-champ-hit' : ''}`}>
+                    {r.champTeam ? <span title={r.champTeam}><Flag team={r.champTeam} size={18} />{r.champHit ? ' ✓' : ''}</span> : '—'}
+                  </td>
                   <td className="tot">{r.total}</td>
                 </tr>
               );
@@ -756,20 +877,26 @@ function RankingTab({ ranking, meSlug, results }) {
         </table>
       </div>
       <p style={{ color: 'rgba(244,240,228,.75)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
-        {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado lançado · Desempate: mais placares exatos, depois mais vencedores.
+        {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado lançado · Acertar o campeão vale +{CHAMPION_PTS} pts{worldChampion ? ` (campeão definido: ${worldChampion})` : ''}.<br />
+        Desempate: mais placares exatos, depois mais vencedores.
       </p>
     </section>
   );
 }
 
 /* ============================ Admin ============================ */
-function AdminTab({ me, matches, results, users, now, onDone, onError, busy, setBusy }) {
+function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onError, busy, setBusy }) {
   const started = matches.filter((m) => now >= new Date(m.kickoff).getTime());
   const [vals, setVals] = useState({});
   const [fase, setFase] = useState(PHASES_KO[0]);
   const [ta, setTa] = useState(''); const [tb, setTb] = useState('');
   const [dt, setDt] = useState(''); const [hr, setHr] = useState('');
   const [pinAlvo, setPinAlvo] = useState(''); const [pinNovo, setPinNovo] = useState('');
+  // forçar palpite
+  const [fpUser, setFpUser] = useState(''); const [fpMatch, setFpMatch] = useState('');
+  const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
+  // campeão oficial
+  const [champ, setChamp] = useState(worldChampion || '');
 
   const setV = (mid, side, v) => setVals((x) => ({ ...x, [mid]: { ...(x[mid] || {}), [side]: v.replace(/\D/g, '').slice(0, 2) } }));
 
@@ -788,7 +915,7 @@ function AdminTab({ me, matches, results, users, now, onDone, onError, busy, set
           const r = results[m.id]; const v = vals[m.id] || {};
           return (
             <div className="bl-admin-row" key={m.id}>
-              <span className="t">{flag(m.home)} {m.home} × {m.away} {flag(m.away)}<br />
+              <span className="t"><Flag team={m.home} size={20} /> {m.home} × {m.away} <Flag team={m.away} size={20} /><br />
                 <small style={{ color: 'var(--cinza)' }}>{fmtDay(m.kickoff)} · {fmtTime(m.kickoff)}{r ? ` · lançado ${r.home}×${r.away}` : ''}</small>
               </span>
               <input aria-label={`Gols ${m.home}`} inputMode="numeric" value={v.h ?? (r ? String(r.home) : '')} onChange={(e) => setV(m.id, 'h', e.target.value)} />
@@ -840,7 +967,7 @@ function AdminTab({ me, matches, results, users, now, onDone, onError, busy, set
             <p className="sub" style={{ marginBottom: 6 }}><b>Jogos adicionados:</b></p>
             {matches.filter((x) => !x.is_seed).map((x) => (
               <div key={x.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px dashed rgba(32,48,31,.2)', fontSize: 13 }}>
-                <span><b>{x.phase}</b> · {flag(x.home)} {x.home} × {x.away} {flag(x.away)} · {fmtDay(x.kickoff)} {fmtTime(x.kickoff)}</span>
+                <span><b>{x.phase}</b> · <Flag team={x.home} size={18} /> {x.home} × {x.away} <Flag team={x.away} size={18} /> · {fmtDay(x.kickoff)} {fmtTime(x.kickoff)}</span>
                 <button className="bl-mini" style={{ color: 'var(--apito)' }} disabled={busy}
                   onClick={() => { if (window.confirm(`Remover ${x.home} × ${x.away}? Os palpites desse jogo serão apagados.`)) run(() => rpc('delete_match', { p_name: me.name, p_pin: me.pin, p_match: x.id }), 'Jogo removido'); }}>
                   remover
@@ -849,6 +976,59 @@ function AdminTab({ me, matches, results, users, now, onDone, onError, busy, set
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bl-panel">
+        <h2 className="bl-display">Forçar / repor palpite</h2>
+        <p className="sub">Lança ou corrige o palpite de <b>qualquer participante</b> em <b>qualquer jogo</b>, ignorando a janela de tempo. Use pra repor palpites perdidos. Deixe os dois placares vazios e clique Salvar para apagar.</p>
+        <div className="bl-field"><label htmlFor="fp-user">Participante</label>
+          <select id="fp-user" className="bl-in" value={fpUser} onChange={(e) => setFpUser(e.target.value)}>
+            <option value="">— escolher —</option>
+            {users.map((u) => <option key={u.slug} value={u.name}>{u.name}</option>)}
+          </select></div>
+        <div className="bl-field"><label htmlFor="fp-match">Jogo</label>
+          <select id="fp-match" className="bl-in" value={fpMatch} onChange={(e) => setFpMatch(e.target.value)}>
+            <option value="">— escolher —</option>
+            {[...matches].map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.home} × {m.away} · {fmtDay(m.kickoff)} {fmtTime(m.kickoff)}{results[m.id] ? ` (resultado ${results[m.id].home}×${results[m.id].away})` : ''}
+              </option>
+            ))}
+          </select></div>
+        <div className="bl-grid2">
+          <div className="bl-field"><label htmlFor="fp-h">Gols mandante</label>
+            <input id="fp-h" className="bl-in" inputMode="numeric" maxLength={2} value={fpH}
+              onChange={(e) => setFpH(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="ex: 2" /></div>
+          <div className="bl-field"><label htmlFor="fp-a">Gols visitante</label>
+            <input id="fp-a" className="bl-in" inputMode="numeric" maxLength={2} value={fpA}
+              onChange={(e) => setFpA(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="ex: 1" /></div>
+        </div>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !fpUser || !fpMatch}
+          onClick={() => {
+            const h = fpH === '' ? null : parseInt(fpH, 10);
+            const a = fpA === '' ? null : parseInt(fpA, 10);
+            if ((h === null) !== (a === null)) { onError('Preencha os dois placares, ou deixe os dois vazios para apagar.'); return; }
+            run(() => rpc('admin_force_pick', { p_name: me.name, p_pin: me.pin, p_target: fpUser, p_match: fpMatch, p_home: h, p_away: a })
+              .then(() => { setFpH(''); setFpA(''); }),
+              h === null ? 'Palpite apagado' : 'Palpite forçado ✅');
+          }}>
+          Salvar palpite forçado
+        </button>
+      </div>
+
+      <div className="bl-panel">
+        <h2 className="bl-display">Campeão oficial do mundo</h2>
+        <p className="sub">Defina aqui o campeão quando a Copa acabar. Quem tiver palpitado essa seleção ganha <b>+{CHAMPION_PTS} pts</b> no ranking. Deixe em branco e salve para limpar.</p>
+        <div className="bl-field"><label htmlFor="ad-champ">Seleção campeã</label>
+          <select id="ad-champ" className="bl-in" value={champ} onChange={(e) => setChamp(e.target.value)}>
+            <option value="">— nenhum (ainda não definido) —</option>
+            {Object.keys(FLAGS).sort((a, b) => a.localeCompare(b)).map((t) => <option key={t} value={t}>{t}</option>)}
+          </select></div>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || champ === (worldChampion || '')}
+          onClick={() => run(() => rpc('set_world_champion', { p_name: me.name, p_pin: me.pin, p_team: champ || null }),
+            champ ? `Campeão definido: ${champ} 🏆` : 'Campeão limpo')}>
+          Salvar campeão oficial
+        </button>
       </div>
 
       <div className="bl-panel">
