@@ -1139,7 +1139,7 @@ function TabelaTab() {
         <div className="bl-panel" style={{ textAlign: 'center' }}>
           <p style={{ margin: 0 }}>
             {state.kind === 'no_key'
-              ? '🔑 A tabela ao vivo precisa da chave da API configurada na Vercel (API_FOOTBALL_KEY).'
+              ? '🔑 A tabela ao vivo precisa da chave da API configurada na Vercel (VITE_API_FOOTBALL_KEY).'
               : `Não consegui carregar a tabela agora. ${state.error}`}
           </p>
         </div>
