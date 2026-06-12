@@ -300,6 +300,7 @@ const CSS = `
 
 /* ── Hero ── */
 .bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal)}
+.bl-logo{width:90px;height:90px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
 .bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:3px;border:3px solid var(--canarinho);
   border-radius:20px 20px 50% 50%/20px 20px 42% 42%;padding:16px 34px 24px;
   background:rgba(0,0,0,.30);
@@ -409,7 +410,7 @@ const CSS = `
 /* ── Ranking ── */
 .bl-rank{background:var(--papel);border:2px solid #20301F;border-radius:18px;
   box-shadow:0 6px 0 rgba(0,0,0,.3),0 2px 24px rgba(0,0,0,.14);overflow:hidden;margin-top:14px}
-.bl-rank table{width:100%;border-collapse:collapse;font-size:14px}
+.bl-rank table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 .bl-rank th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cinza);
   text-align:left;padding:14px 12px 8px}
 .bl-rank td{padding:12px 12px;border-top:1px solid rgba(32,48,31,.1)}
@@ -759,9 +760,11 @@ export default function App() {
         <style>{CSS}</style>
         <header className="bl-hero">
           <div className="bl-crest">
+            <img src="/logo.png" alt="EngSoc" className="bl-logo" />
             <span className="ano bl-display">★ 2026 ★</span>
             <h1 className="bl-display">BOLÃO DA COPA</h1>
-            <span style={{ fontSize: 11, opacity: .85 }}>EUA · México · Canadá</span>
+            <span style={{ fontSize: 13, opacity: .9, fontWeight: 700, letterSpacing: 1 }}>ENGSOC</span>
+            <span style={{ fontSize: 11, opacity: .7 }}>EUA · México · Canadá</span>
           </div>
         </header>
         <div className="bl-wrap" style={{ paddingTop: 8 }}>
@@ -777,9 +780,11 @@ export default function App() {
       <style>{CSS}</style>
       <header className="bl-hero">
         <div className="bl-crest">
+          <img src="/logo.png" alt="EngSoc" className="bl-logo" />
           <span className="ano bl-display">★ 2026 ★</span>
           <h1 className="bl-display">BOLÃO DA COPA</h1>
-          <span style={{ fontSize: 11, opacity: .85 }}>EUA · México · Canadá</span>
+          <span style={{ fontSize: 13, opacity: .9, fontWeight: 700, letterSpacing: 1 }}>ENGSOC</span>
+          <span style={{ fontSize: 11, opacity: .7 }}>EUA · México · Canadá</span>
         </div>
         <div className="bl-rules">
           <span className="bl-chip">Placar exato <b>3 pts</b></span>
@@ -1272,10 +1277,10 @@ function RankingTab({ ranking, meSlug, results, worldChampion }) {
           <thead>
             <tr>
               <th>#</th><th>Participante</th>
-              <th className="num" title="Placares exatos">⭐ Exatos</th>
-              <th className="num" title="Acertou vencedor/empate">✓ Venc.</th>
-              <th className="champ-col" title="Palpite de campeão">🏆 Campeão</th>
               <th className="num">Pts</th>
+              <th className="num" title="Placares exatos">⭐</th>
+              <th className="num" title="Acertou vencedor/empate">✓</th>
+              <th className="champ-col" title="Palpite de campeão">🏆</th>
             </tr>
           </thead>
           <tbody>
@@ -1286,12 +1291,12 @@ function RankingTab({ ranking, meSlug, results, worldChampion }) {
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
                   <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
                   <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td className="tot">{r.total}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
                   <td className={`champ-col ${r.champHit ? 'bl-champ-hit' : ''}`}>
                     {r.champTeam ? <span title={r.champTeam}><Flag team={r.champTeam} size={18} />{r.champHit ? ' ✓' : ''}</span> : '—'}
                   </td>
-                  <td className="tot">{r.total}</td>
                 </tr>
               );
             })}
