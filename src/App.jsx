@@ -300,6 +300,7 @@ const CSS = `
 
 /* ── Hero ── */
 .bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal)}
+.bl-logo{width:90px;height:90px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
 .bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:3px;border:3px solid var(--canarinho);
   border-radius:20px 20px 50% 50%/20px 20px 42% 42%;padding:16px 34px 24px;
   background:rgba(0,0,0,.30);
@@ -759,9 +760,11 @@ export default function App() {
         <style>{CSS}</style>
         <header className="bl-hero">
           <div className="bl-crest">
+            <img src="/logo.png" alt="EngSoc" className="bl-logo" />
             <span className="ano bl-display">★ 2026 ★</span>
             <h1 className="bl-display">BOLÃO DA COPA</h1>
-            <span style={{ fontSize: 11, opacity: .85 }}>EUA · México · Canadá</span>
+            <span style={{ fontSize: 13, opacity: .9, fontWeight: 700, letterSpacing: 1 }}>ENGSOC</span>
+            <span style={{ fontSize: 11, opacity: .7 }}>EUA · México · Canadá</span>
           </div>
         </header>
         <div className="bl-wrap" style={{ paddingTop: 8 }}>
@@ -777,9 +780,11 @@ export default function App() {
       <style>{CSS}</style>
       <header className="bl-hero">
         <div className="bl-crest">
+          <img src="/logo.png" alt="EngSoc" className="bl-logo" />
           <span className="ano bl-display">★ 2026 ★</span>
           <h1 className="bl-display">BOLÃO DA COPA</h1>
-          <span style={{ fontSize: 11, opacity: .85 }}>EUA · México · Canadá</span>
+          <span style={{ fontSize: 13, opacity: .9, fontWeight: 700, letterSpacing: 1 }}>ENGSOC</span>
+          <span style={{ fontSize: 11, opacity: .7 }}>EUA · México · Canadá</span>
         </div>
         <div className="bl-rules">
           <span className="bl-chip">Placar exato <b>3 pts</b></span>
