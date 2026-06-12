@@ -1038,7 +1038,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         </div>
       </div>
 
-      {infoOpen && <MatchInfo m={m} />}
+      {infoOpen && <MatchInfo m={m} savedRes={res} />}
 
       {open && (
         <div className="bl-picks">
@@ -1069,17 +1069,34 @@ const EV_ICON = (e) => {
   return '•';
 };
 
-function MatchInfo({ m }) {
+function MatchInfo({ m, savedRes }) {
   const [state, setState] = useState({ loading: true });
   const [sub, setSub] = useState('resumo');
 
   useEffect(() => {
     let alive = true;
     setState({ loading: true });
-    const q = `?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&date=${encodeURIComponent(m.kickoff)}`;
     fetchMatchInfo(m.home, m.away, m.kickoff)
-      .then((d) => { if (alive) setState({ loading: false, data: d }); })
-      .catch((e) => { if (alive) setState({ loading: false, error: e.message, kind: e.kind }); });
+      .then((d) => {
+        if (!alive) return;
+        // Se ESPN não achou mas temos resultado salvo, monta payload mínimo
+        if (!d?.found && savedRes) {
+          d = { found: true, status: { short: 'FT', long: 'Encerrado' }, goals: { home: savedRes.home, away: savedRes.away },
+                teams: { home: { name: m.home }, away: { name: m.away } }, events: [], lineups: [], statistics: [], h2h: [] };
+        }
+        setState({ loading: false, data: d });
+      })
+      .catch((e) => {
+        if (!alive) return;
+        // erro de rede mas temos resultado salvo — usa ele
+        if (savedRes) {
+          setState({ loading: false, data: { found: true, status: { short: 'FT', long: 'Encerrado' },
+            goals: { home: savedRes.home, away: savedRes.away },
+            teams: { home: { name: m.home }, away: { name: m.away } }, events: [], lineups: [], statistics: [], h2h: [] } });
+        } else {
+          setState({ loading: false, error: e.message, kind: e.kind });
+        }
+      });
     return () => { alive = false; };
   }, [m.home, m.away, m.kickoff]);
 
