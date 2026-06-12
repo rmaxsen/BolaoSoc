@@ -284,6 +284,61 @@ async function fetchMatchInfo(home, away, kickoff) {
   };
 }
 
+async function fetchArtilharia() {
+  const data = await espnGet(ESPN_BASE, '/statistics');
+  const cat = (data.stats || []).find((s) => s.abbreviation === 'G' || (s.displayName || '').toLowerCase().includes('goal'));
+  return (cat?.leaders || []).map((l) => ({
+    name: l.athlete?.displayName || l.athlete?.fullName || '—',
+    team: l.team?.displayName || l.team?.name || '—',
+    teamAbbr: l.team?.abbreviation || '',
+    goals: Number(l.value) || 0,
+    assists: Number((l.statistics || []).find((s) => s.name === 'goalAssists')?.value) || 0,
+    appearances: Number((l.statistics || []).find((s) => s.name === 'appearances')?.value) || 0,
+  })).filter((p) => p.goals > 0);
+}
+
+function useLiveScores(matches, me, rpcFn) {
+  const [scores, setScores] = useState({});
+  const autoSaved = useRef(new Set());
+
+  const poll = useCallback(async () => {
+    if (!matches.length) return;
+    try {
+      const sb = await espnGet(ESPN_BASE, '/scoreboard', {}).catch(() => null);
+      if (!sb?.events) return;
+      const newScores = {};
+      for (const ev of sb.events) {
+        const comp = ev.competitions?.[0]; if (!comp) continue;
+        const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
+        const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
+        for (const m of matches) {
+          const hNames = espnTeamNames(homeComp); const aNames = espnTeamNames(awayComp);
+          if (hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n))) {
+            const short = espnStatus(comp);
+            const h = homeComp?.score != null ? Number(homeComp.score) : null;
+            const a = awayComp?.score != null ? Number(awayComp.score) : null;
+            newScores[m.id] = { home: h, away: a, status: short, elapsed: comp.status?.displayClock || null };
+            // auto-save quando FT e admin logado
+            if (short === 'FT' && me?.isAdmin && h != null && a != null && !autoSaved.current.has(m.id)) {
+              autoSaved.current.add(m.id);
+              rpcFn('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: Math.round(h), p_away: Math.round(a) }).catch(() => {});
+            }
+          }
+        }
+      }
+      setScores(newScores);
+    } catch {}
+  }, [matches, me, rpcFn]);
+
+  useEffect(() => {
+    poll();
+    const id = setInterval(poll, 60000);
+    return () => clearInterval(id);
+  }, [poll]);
+
+  return scores;
+}
+
 /* ============================================================ CSS ============================================================ */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
@@ -744,6 +799,8 @@ export default function App() {
     return rows;
   }, [users, matches, results, picksAll, champPicks, worldChampion]);
 
+  const liveScores = useLiveScores(matches, me, rpc);
+
   const pendentes = useMemo(() => {
     if (!me) return 0;
     return matches.filter((m) => {
@@ -811,6 +868,7 @@ export default function App() {
               </button>
               <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); }}>Ranking</button>
               <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => setTab('tabela')}>Tabela</button>
+              <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => setTab('artilharia')}>⚽ Art.</button>
               {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); }}>Admin</button>}
             </div>
           </nav>
@@ -820,10 +878,12 @@ export default function App() {
               <JogosTab matches={matches} me={me} users={users} now={now}
                 picksAll={picksAll} myPicks={myPicks} draft={draft} results={results}
                 filtro={filtro} setFiltro={setFiltro} setDraftScore={setDraftScore}
-                myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy} />
+                myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
+                liveScores={liveScores} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
+            {tab === 'artilharia' && <ArtilhariaTab />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
                 worldChampion={worldChampion}
@@ -927,7 +987,7 @@ function ChampionCard({ myChampion, onSave, busy }) {
 }
 
 /* ============================ Jogos ============================ */
-function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy }) {
+function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
@@ -973,7 +1033,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
           {items.map((m) => (
             <MatchCard key={m.id} m={m} me={me} users={users} now={now}
               picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-              setDraftScore={setDraftScore} />
+              setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
           ))}
         </div>
       ))}
@@ -981,7 +1041,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
   );
 }
 
-function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore }) {
+function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore, liveScore }) {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const locked = isLocked(m, now);
@@ -994,7 +1054,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valH = d ? d.h : saved?.home ?? null;
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
-  const stamp = res ? ['fim', 'ENCERRADO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
+  const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
+  const stamp = res ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
@@ -1029,6 +1090,16 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         {res && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             <span className="bl-final">{res.home} <small>placar<br />final</small> {res.away}</span>
+          </div>
+        )}
+
+        {!res && liveScore && liveScore.status !== 'NS' && liveScore.home != null && (
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            {isLive && <span className="bl-mi-live" style={{ marginBottom: 6, display: 'inline-flex' }}><span className="dot" />AO VIVO {liveScore.elapsed ? `${liveScore.elapsed}` : ''}</span>}
+            <div style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
+              {liveScore.home} × {liveScore.away}
+              {!isLive && liveScore.status === 'FT' && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--cinza)', marginLeft: 8 }}>ESPN</span>}
+            </div>
           </div>
         )}
 
@@ -1262,6 +1333,68 @@ function TabelaTab() {
 
       <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
         Dados ao vivo via ESPN · os 2 primeiros de cada grupo (em verde) avançam.
+      </p>
+    </section>
+  );
+}
+
+/* ============================ Artilharia ============================ */
+function ArtilhariaTab() {
+  const [state, setState] = useState({ loading: true });
+  const load = useCallback(() => {
+    setState({ loading: true });
+    fetchArtilharia()
+      .then((data) => setState({ loading: false, data }))
+      .catch((e) => setState({ loading: false, error: e.message }));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <section aria-label="Artilharia">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
+        <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>⚽ Artilharia</h2>
+        <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
+      </div>
+
+      {state.loading && <div className="bl-grp" style={{ padding: 0 }}><div className="bl-skel" style={{ height: 150, margin: 0, borderRadius: 0 }} /></div>}
+      {state.error && <div className="bl-panel" style={{ textAlign: 'center' }}><p style={{ margin: 0 }}>Não consegui carregar agora. {state.error}</p></div>}
+      {state.data?.length === 0 && <div className="bl-panel" style={{ textAlign: 'center' }}><p style={{ margin: 0 }}>Nenhum gol marcado ainda.</p></div>}
+
+      {state.data?.length > 0 && (
+        <div className="bl-grp">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>#</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>Jogador</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>⚽</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>🅰</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>J</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.data.map((p, i) => (
+                <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)', width: 32 }}>{i + 1}</td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Flag team={Object.keys(TEAM_EN).find((k) => TEAM_EN[k]?.some((v) => v.toLowerCase() === p.team.toLowerCase()) || k.toLowerCase() === p.team.toLowerCase()) || ''} size={14} />
+                      {p.team}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 900, fontSize: 18 }}>{p.goals}</td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.assists || '—'}</td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.appearances}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12 }}>
+        Dados via ESPN · ⚽ gols · 🅰 assistências · J jogos
       </p>
     </section>
   );
