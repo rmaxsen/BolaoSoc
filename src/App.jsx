@@ -1260,6 +1260,7 @@ function RankingTab({ ranking, meSlug, results, worldChampion }) {
 function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onError, busy, setBusy }) {
   const started = matches.filter((m) => now >= new Date(m.kickoff).getTime());
   const [vals, setVals] = useState({});
+  const [fetching, setFetching] = useState({});
   const [fase, setFase] = useState(PHASES_KO[0]);
   const [ta, setTa] = useState(''); const [tb, setTb] = useState('');
   const [dt, setDt] = useState(''); const [hr, setHr] = useState('');
@@ -1267,6 +1268,28 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
   // forçar palpite
   const [fpUser, setFpUser] = useState(''); const [fpMatch, setFpMatch] = useState('');
   const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
+
+  async function fetchEspnScore(m) {
+    setFetching((f) => ({ ...f, [m.id]: true }));
+    try {
+      const dateStr = m.kickoff.slice(0, 10).replace(/-/g, '');
+      const sb = await espnGet(ESPN_BASE, '/scoreboard', { dates: dateStr });
+      const ev = (sb.events || []).find((e) => {
+        const names = (e.competitions?.[0]?.competitors || []).map((c) => c.team?.displayName || c.team?.name || '');
+        return names.some((n) => matchesTeam(m.home, n)) && names.some((n) => matchesTeam(m.away, n));
+      });
+      if (!ev) { onError('Jogo não encontrado na ESPN ainda.'); return; }
+      const comp = ev.competitions[0];
+      const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
+      const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
+      const statusName = comp.status?.type?.name || '';
+      if (statusName === 'STATUS_SCHEDULED') { onError('Jogo ainda não começou.'); return; }
+      const h = homeComp.score != null ? String(Math.round(Number(homeComp.score))) : '';
+      const a = awayComp.score != null ? String(Math.round(Number(awayComp.score))) : '';
+      setVals((x) => ({ ...x, [m.id]: { h, a } }));
+    } catch (e) { onError('Erro ao buscar placar da ESPN.'); }
+    finally { setFetching((f) => ({ ...f, [m.id]: false })); }
+  }
   // campeão oficial
   const [champ, setChamp] = useState(worldChampion || '');
 
@@ -1290,6 +1313,10 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
               <span className="t"><Flag team={m.home} size={20} /> {m.home} × {m.away} <Flag team={m.away} size={20} /><br />
                 <small style={{ color: 'var(--cinza)' }}>{fmtDay(m.kickoff)} · {fmtTime(m.kickoff)}{r ? ` · lançado ${r.home}×${r.away}` : ''}</small>
               </span>
+              <button className="bl-okbtn" style={{ background: 'var(--bandeira)', fontSize: 11, padding: '4px 7px' }}
+                disabled={busy || fetching[m.id]} onClick={() => fetchEspnScore(m)}>
+                {fetching[m.id] ? '…' : '⚽ESPN'}
+              </button>
               <input aria-label={`Gols ${m.home}`} inputMode="numeric" value={v.h ?? (r ? String(r.home) : '')} onChange={(e) => setV(m.id, 'h', e.target.value)} />
               <span style={{ textAlign: 'center' }}>×</span>
               <input aria-label={`Gols ${m.away}`} inputMode="numeric" value={v.a ?? (r ? String(r.away) : '')} onChange={(e) => setV(m.id, 'a', e.target.value)} />
