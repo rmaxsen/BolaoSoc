@@ -182,14 +182,37 @@ function espnStatus(comp) {
   return 'NS';
 }
 
+// Extrai todos os nomes possíveis de um competitor ESPN para o matchesTeam
+function espnTeamNames(c) {
+  const t = c.team || {};
+  return [t.displayName, t.name, t.shortDisplayName, t.abbreviation].filter(Boolean);
+}
+
+function findEspnEvent(events, home, away) {
+  return events.find((e) => {
+    const comps = e.competitions?.[0]?.competitors || [];
+    const allNames = comps.map(espnTeamNames);
+    if (allNames.length < 2) return false;
+    const [n0, n1] = allNames;
+    return (n0.some((n) => matchesTeam(home, n)) && n1.some((n) => matchesTeam(away, n))) ||
+           (n0.some((n) => matchesTeam(away, n)) && n1.some((n) => matchesTeam(home, n)));
+  });
+}
+
+async function espnScoreboard(dateStr) {
+  const sb = await espnGet(ESPN_BASE, '/scoreboard', dateStr ? { dates: dateStr } : {});
+  return sb.events || [];
+}
+
 async function fetchMatchInfo(home, away, kickoff) {
   const dateStr = (kickoff || '').slice(0, 10).replace(/-/g, '');
-  const sb = await espnGet(ESPN_BASE, '/scoreboard', dateStr ? { dates: dateStr } : {});
-  const events = sb.events || [];
-  const ev = events.find((e) => {
-    const names = (e.competitions?.[0]?.competitors || []).map((c) => c.team?.displayName || c.team?.name || '');
-    return names.some((n) => matchesTeam(home, n)) && names.some((n) => matchesTeam(away, n));
-  });
+  let events = await espnScoreboard(dateStr);
+  let ev = findEspnEvent(events, home, away);
+  // fallback: busca sem filtro de data (jogos do dia atual na ESPN)
+  if (!ev && dateStr) {
+    events = await espnScoreboard('');
+    ev = findEspnEvent(events, home, away);
+  }
   if (!ev) return { found: false, message: 'Ainda não achei dados oficiais desse jogo.' };
 
   const comp = ev.competitions[0];
@@ -1273,11 +1296,9 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
     setFetching((f) => ({ ...f, [m.id]: true }));
     try {
       const dateStr = m.kickoff.slice(0, 10).replace(/-/g, '');
-      const sb = await espnGet(ESPN_BASE, '/scoreboard', { dates: dateStr });
-      const ev = (sb.events || []).find((e) => {
-        const names = (e.competitions?.[0]?.competitors || []).map((c) => c.team?.displayName || c.team?.name || '');
-        return names.some((n) => matchesTeam(m.home, n)) && names.some((n) => matchesTeam(m.away, n));
-      });
+      let events = await espnScoreboard(dateStr);
+      let ev = findEspnEvent(events, m.home, m.away);
+      if (!ev) { events = await espnScoreboard(''); ev = findEspnEvent(events, m.home, m.away); }
       if (!ev) { onError('Jogo não encontrado na ESPN ainda.'); return; }
       const comp = ev.competitions[0];
       const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
