@@ -170,15 +170,13 @@ async function fetchStandings() {
 
 function espnStatus(comp) {
   const name = comp?.status?.type?.name || '';
-  const period = comp?.status?.period || 0;
   if (name === 'STATUS_FINAL' || name === 'STATUS_FULL_TIME') return 'FT';
   if (name === 'STATUS_HALFTIME') return 'HT';
-  if (name === 'STATUS_IN_PROGRESS') {
-    if (period === 1) return '1H';
-    if (period === 2) return '2H';
-    if (period >= 3) return 'ET';
-    return 'LIVE';
-  }
+  if (name === 'STATUS_FIRST_HALF') return '1H';
+  if (name === 'STATUS_SECOND_HALF') return '2H';
+  if (name === 'STATUS_EXTRA_TIME') return 'ET';
+  if (name === 'STATUS_SHOOTOUT') return 'P';
+  if (name === 'STATUS_IN_PROGRESS') return 'LIVE';
   return 'NS';
 }
 
