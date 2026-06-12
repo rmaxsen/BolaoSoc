@@ -1328,6 +1328,41 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
     } catch (e) { onError('Erro ao buscar placar da ESPN.'); }
     finally { setFetching((f) => ({ ...f, [m.id]: false })); }
   }
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncAllEspn() {
+    if (started.length === 0) return;
+    setSyncing(true);
+    let saved = 0, skipped = 0;
+    try {
+      // Busca o scoreboard uma vez (sem data) para pegar jogos recentes
+      const todayEvents = await espnScoreboard('');
+      for (const m of started) {
+        const dateStr = m.kickoff.slice(0, 10).replace(/-/g, '');
+        let ev = findEspnEvent(todayEvents, m.home, m.away);
+        if (!ev) {
+          const dateEvents = await espnScoreboard(dateStr);
+          ev = findEspnEvent(dateEvents, m.home, m.away);
+        }
+        if (!ev) { skipped++; continue; }
+        const comp = ev.competitions[0];
+        const statusName = comp?.status?.type?.name || '';
+        if (statusName === 'STATUS_SCHEDULED') { skipped++; continue; }
+        const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
+        const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
+        const h = homeComp?.score != null ? Math.round(Number(homeComp.score)) : null;
+        const a = awayComp?.score != null ? Math.round(Number(awayComp.score)) : null;
+        if (h == null || a == null) { skipped++; continue; }
+        try {
+          await rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: h, p_away: a });
+          saved++;
+        } catch { skipped++; }
+      }
+      await onDone(`ESPN: ${saved} resultado${saved !== 1 ? 's' : ''} salvo${saved !== 1 ? 's' : ''}${skipped ? `, ${skipped} não encontrado${skipped !== 1 ? 's' : ''}` : ''} ✅`);
+    } catch (e) { onError('Erro ao sincronizar com a ESPN.'); }
+    finally { setSyncing(false); }
+  }
+
   // campeão oficial
   const [champ, setChamp] = useState(worldChampion || '');
 
@@ -1341,7 +1376,10 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
   return (
     <section aria-label="Administração">
       <div className="bl-panel">
-        <h2 className="bl-display">Lançar resultados</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <h2 className="bl-display" style={{ margin: 0 }}>Lançar resultados</h2>
+          {started.length > 0 && <button className="bl-btn verde" style={{ fontSize: 13, padding: '6px 14px' }} disabled={syncing || busy} onClick={syncAllEspn}>{syncing ? '⏳ Sincronizando…' : '⚽ Sincronizar ESPN'}</button>}
+        </div>
         <p className="sub">Aparecem os jogos que já começaram. Placar do tempo normal + prorrogação (sem pênaltis). Deixe vazio e OK para apagar.</p>
         {started.length === 0 && <div className="bl-info">Nenhum jogo começou ainda.</div>}
         {[...started].reverse().map((m) => {
