@@ -400,6 +400,15 @@ const CSS = `
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
 .bl-tab[data-on="1"]{background:var(--canarinho);color:#241a00}
 .bl-tab:focus-visible{outline:3px solid var(--canarinho);outline-offset:-3px}
+
+/* ── PWA: barra de navegação no rodapé ── */
+@media(display-mode:standalone){
+  .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
+  .bl-tabs-in{padding:6px 10px 4px}
+  .bl-tab{border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
+  .bl-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  [data-theme="dark"] .bl-tabs{background:rgba(6,13,26,.96)}
+}
 .bl-badge{position:absolute;top:2px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--apito);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 
 /* ── Day separator ── */
