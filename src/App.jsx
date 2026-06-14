@@ -1101,9 +1101,6 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   return (
     <article className="bl-card">
       <span className={`bl-stamp ${stamp[0]}`}>{stamp[1]}</span>
-      {isFinished && (
-        <button className="bl-collapse-btn" onClick={() => setCollapsed(true)} title="Recolher">▴ recolher</button>
-      )}
       <div className="bl-card-inner">
         <div className="bl-meta">
           <span className="grupo">{m.phase === 'Grupos' ? `GRUPO ${m.grp}` : m.phase.toUpperCase()}</span>
@@ -1151,6 +1148,9 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
           </span>
           <span style={{ display: 'flex', gap: 12 }}>
+            {isFinished && (
+              <button className="bl-mini" onClick={() => setCollapsed(true)}>▴ recolher</button>
+            )}
             <button className="bl-mini" onClick={() => setInfoOpen((o) => !o)}>
               {infoOpen ? 'esconder info' : '📊 info do jogo'}
             </button>
