@@ -1000,6 +1000,8 @@ function ChampionCard({ myChampion, onSave, busy }) {
 /* ============================ Jogos ============================ */
 function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
+  const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
     if (filtro === 'abertos') return isOpenWindow(m, now);
@@ -1032,22 +1034,34 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         ))}
       </div>
 
+      {filtered.some((m) => results[m.id]) && (
+        <div style={{ textAlign: 'right', marginBottom: 8 }}>
+          <button className="bl-mini" onClick={() => toggleHideFinished(!hideFinished)}>
+            {hideFinished ? '👁 mostrar encerrados' : '🙈 ocultar encerrados'}
+          </button>
+        </div>
+      )}
+
       {byDay.length === 0 && (
         <div className="bl-panel" style={{ textAlign: 'center' }}>
           <p style={{ margin: 0 }}>Nenhum jogo aqui. {filtro === 'mata' ? 'O organizador adiciona o mata-mata quando os cruzamentos saírem.' : 'Mude o filtro acima.'}</p>
         </div>
       )}
 
-      {byDay.map(({ day, items }) => (
-        <div key={dayKey(day)}>
-          <div className="bl-day"><span>{fmtDay(day)}</span></div>
-          {items.map((m) => (
-            <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-              picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-              setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
-          ))}
-        </div>
-      ))}
+      {byDay.map(({ day, items }) => {
+        const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+        if (!visible.length) return null;
+        return (
+          <div key={dayKey(day)}>
+            <div className="bl-day"><span>{fmtDay(day)}</span></div>
+            {visible.map((m) => (
+              <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
+            ))}
+          </div>
+        );
+      })}
     </section>
   );
 }
@@ -1101,9 +1115,6 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   return (
     <article className="bl-card">
       <span className={`bl-stamp ${stamp[0]}`}>{stamp[1]}</span>
-      {isFinished && (
-        <button className="bl-collapse-btn" onClick={() => setCollapsed(true)} title="Recolher">▴ recolher</button>
-      )}
       <div className="bl-card-inner">
         <div className="bl-meta">
           <span className="grupo">{m.phase === 'Grupos' ? `GRUPO ${m.grp}` : m.phase.toUpperCase()}</span>
@@ -1151,6 +1162,9 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
           </span>
           <span style={{ display: 'flex', gap: 12 }}>
+            {isFinished && (
+              <button className="bl-mini" onClick={() => setCollapsed(true)}>▴ recolher</button>
+            )}
             <button className="bl-mini" onClick={() => setInfoOpen((o) => !o)}>
               {infoOpen ? 'esconder info' : '📊 info do jogo'}
             </button>
