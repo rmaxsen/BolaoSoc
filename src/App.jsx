@@ -342,16 +342,19 @@ function useLiveScores(matches, me, rpcFn) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
 :root{--campo:#0B2A1C;--campo2:#0E3322;--cal:#F4F0E4;--papel:#FBF8EF;--tinta:#15241C;--canarinho:#FFC629;--bandeira:#1E9E55;--royal:#2447C5;--apito:#D7263D;--cinza:#6E7A70;--board:#0d1f14;}
-[data-theme="dark"]{--papel:#0f1f14;--tinta:#e8e4d8;--cinza:#8a9a8c}
-[data-theme="dark"] .bl-card{border-color:#2a4a30}
+[data-theme="dark"]{--campo:#0a0f1f;--campo2:#0d1428;--papel:#0d1428;--tinta:#e8e4d8;--cinza:#8a96b0;--board:#060d1a}
+[data-theme="dark"] .bl-card{border-color:#1e2d50}
 [data-theme="dark"] .bl-card-inner{border-color:rgba(255,255,255,.08)}
-[data-theme="dark"] .bl-panel{border-color:#2a4a30}
-[data-theme="dark"] .bl-rank{border-color:#2a4a30}
-[data-theme="dark"] .bl-grp{border-color:#2a4a30}
-[data-theme="dark"] .bl-in{background:#0a1a0e;border-color:#2a4a30;color:var(--tinta)}
-[data-theme="dark"] .bl-stamp{background:rgba(15,31,20,.95)}
-[data-theme="dark"] .bl-mi-tabs button{background:#0f1f14;color:var(--cinza);border-color:#2a4a30}
+[data-theme="dark"] .bl-panel{border-color:#1e2d50}
+[data-theme="dark"] .bl-rank{border-color:#1e2d50}
+[data-theme="dark"] .bl-grp{border-color:#1e2d50}
+[data-theme="dark"] .bl-in{background:#060d1a;border-color:#1e2d50;color:var(--tinta)}
+[data-theme="dark"] .bl-stamp{background:rgba(13,20,40,.95)}
+[data-theme="dark"] .bl-mi-tabs button{background:#0d1428;color:var(--cinza);border-color:#1e2d50}
 [data-theme="dark"] .bl-picks .row:nth-child(odd){background:rgba(255,255,255,.04)}
+[data-theme="dark"] .bl-tabs{background:rgba(6,13,26,.95)}
+[data-theme="dark"] .bl-grp h3{background:#060d1a}
+[data-theme="dark"] .bl-meta .grupo{background:#060d1a}
 *{box-sizing:border-box} html,body,#root{min-height:100%} body{margin:0}
 .bl-app{min-height:100vh;font-family:'Archivo',system-ui,-apple-system,sans-serif;color:var(--tinta);
   background:
@@ -594,8 +597,10 @@ const CSS = `
 .bl-chart-legend i{width:20px;height:3px;border-radius:2px;display:inline-block}
 
 /* ── Dark mode toggle ── */
-.bl-dark-btn{border:1.5px solid rgba(255,198,41,.4);background:rgba(0,0,0,.2);border-radius:999px;padding:4px 10px;font-size:14px;cursor:pointer;color:var(--cal);line-height:1;transition:background .2s}
+.bl-dark-btn{border:1.5px solid rgba(255,198,41,.4);background:rgba(0,0,0,.2);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;color:var(--cal);line-height:1;transition:background .2s}
 .bl-dark-btn:hover{background:rgba(255,198,41,.15)}
+.bl-toggle-btn{border:1.5px solid rgba(32,48,31,.35);background:transparent;border-radius:8px;padding:6px 14px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--cinza);transition:background .18s,color .18s,border-color .18s}
+.bl-toggle-btn:hover,.bl-toggle-btn[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 
 /* ── Collapsed pick badge ── */
 .bl-collapsed-pick{font-size:10px;font-weight:700;color:var(--cinza);white-space:nowrap;background:rgba(32,48,31,.07);border-radius:999px;padding:2px 8px;margin-left:4px}
@@ -914,11 +919,6 @@ export default function App() {
     <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
       <header className="bl-hero">
-        <div style={{ position: 'absolute', top: 12, right: 14 }}>
-          <button className="bl-dark-btn" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo escuro'}>
-            {darkMode ? '☀️' : '🌙'}
-          </button>
-        </div>
         <div className="bl-crest">
           <img src="/logo.png" alt="EngSoc" className="bl-logo" />
           <span className="ano bl-display">★ 2026 ★</span>
@@ -932,10 +932,16 @@ export default function App() {
           <span className="bl-chip">Abre <b>24h</b> antes · fecha <b>15 min</b> antes</span>
         </div>
         {me && (
-          <div style={{ marginTop: 10, fontSize: 13 }}>
-            {me.isAdmin ? '👑 ' : '⚽ '}<b>{me.name}</b>
-            {' · '}<button className="bl-link" style={{ color: 'var(--canarinho)' }} onClick={refresh}>atualizar</button>
-            {' · '}<button className="bl-link" style={{ color: 'var(--canarinho)' }} onClick={logout}>sair</button>
+          <div style={{ marginTop: 10, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span>{me.isAdmin ? '👑 ' : '⚽ '}<b>{me.name}</b></span>
+            <span style={{ color: 'rgba(244,240,228,.4)' }}>·</span>
+            <button className="bl-link" style={{ color: 'var(--canarinho)' }} onClick={refresh}>atualizar</button>
+            <span style={{ color: 'rgba(244,240,228,.4)' }}>·</span>
+            <button className="bl-link" style={{ color: 'var(--canarinho)' }} onClick={logout}>sair</button>
+            <span style={{ color: 'rgba(244,240,228,.4)' }}>·</span>
+            <button className="bl-dark-btn" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo escuro'}>
+              {darkMode ? '☀️ claro' : '🌙 noite'}
+            </button>
           </div>
         )}
       </header>
@@ -1133,8 +1139,8 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
 
       {filtered.some((m) => results[m.id]) && (
         <div style={{ textAlign: 'right', marginBottom: 8 }}>
-          <button className="bl-mini" onClick={() => toggleHideFinished(!hideFinished)}>
-            {hideFinished ? '👁 mostrar encerrados' : '🙈 ocultar encerrados'}
+          <button className="bl-toggle-btn" data-on={hideFinished ? 1 : 0} onClick={() => toggleHideFinished(!hideFinished)}>
+            {hideFinished ? 'Mostrar encerrados' : 'Ocultar encerrados'}
           </button>
         </div>
       )}
