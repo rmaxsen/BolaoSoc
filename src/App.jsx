@@ -342,6 +342,16 @@ function useLiveScores(matches, me, rpcFn) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
 :root{--campo:#0B2A1C;--campo2:#0E3322;--cal:#F4F0E4;--papel:#FBF8EF;--tinta:#15241C;--canarinho:#FFC629;--bandeira:#1E9E55;--royal:#2447C5;--apito:#D7263D;--cinza:#6E7A70;--board:#0d1f14;}
+[data-theme="dark"]{--papel:#0f1f14;--tinta:#e8e4d8;--cinza:#8a9a8c}
+[data-theme="dark"] .bl-card{border-color:#2a4a30}
+[data-theme="dark"] .bl-card-inner{border-color:rgba(255,255,255,.08)}
+[data-theme="dark"] .bl-panel{border-color:#2a4a30}
+[data-theme="dark"] .bl-rank{border-color:#2a4a30}
+[data-theme="dark"] .bl-grp{border-color:#2a4a30}
+[data-theme="dark"] .bl-in{background:#0a1a0e;border-color:#2a4a30;color:var(--tinta)}
+[data-theme="dark"] .bl-stamp{background:rgba(15,31,20,.95)}
+[data-theme="dark"] .bl-mi-tabs button{background:#0f1f14;color:var(--cinza);border-color:#2a4a30}
+[data-theme="dark"] .bl-picks .row:nth-child(odd){background:rgba(255,255,255,.04)}
 *{box-sizing:border-box} html,body,#root{min-height:100%} body{margin:0}
 .bl-app{min-height:100vh;font-family:'Archivo',system-ui,-apple-system,sans-serif;color:var(--tinta);
   background:
@@ -570,6 +580,26 @@ const CSS = `
   .bl-x{padding:5px 6px}
 }
 
+/* ── Stats resumo ── */
+.bl-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.bl-stat-box{background:linear-gradient(135deg,#1a3024,#0f2418);border:1.5px solid rgba(255,198,41,.25);border-radius:14px;padding:10px 8px;text-align:center;color:var(--cal)}
+.bl-stat-box .sv{font-size:22px;font-weight:900;color:var(--canarinho);line-height:1}
+.bl-stat-box .sl{font-size:10px;font-weight:700;color:rgba(244,240,228,.65);margin-top:3px;line-height:1.3;letter-spacing:.3px}
+
+/* ── Rank history chart ── */
+.bl-chart{background:var(--papel);border:2px solid #20301F;border-radius:18px;margin-top:14px;padding:16px;overflow:hidden}
+.bl-chart h3{margin:0 0 10px;font-size:14px;font-weight:800;color:var(--tinta)}
+.bl-chart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px}
+.bl-chart-legend span{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--tinta)}
+.bl-chart-legend i{width:20px;height:3px;border-radius:2px;display:inline-block}
+
+/* ── Dark mode toggle ── */
+.bl-dark-btn{border:1.5px solid rgba(255,198,41,.4);background:rgba(0,0,0,.2);border-radius:999px;padding:4px 10px;font-size:14px;cursor:pointer;color:var(--cal);line-height:1;transition:background .2s}
+.bl-dark-btn:hover{background:rgba(255,198,41,.15)}
+
+/* ── Collapsed pick badge ── */
+.bl-collapsed-pick{font-size:10px;font-weight:700;color:var(--cinza);white-space:nowrap;background:rgba(32,48,31,.07);border-radius:999px;padding:2px 8px;margin-left:4px}
+
 /* ── Champion pick card ── */
 .bl-champ{background:linear-gradient(135deg,#1a3024,#0f2418);border:2px solid var(--canarinho);
   border-radius:18px;margin:14px 0;padding:18px 18px 20px;color:var(--cal);position:relative;overflow:hidden;
@@ -676,6 +706,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const toastRef = useRef(null);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === '1');
+  const alertedWindows = useRef(new Set());
 
   const say = useCallback((msg) => {
     setToast(msg);
@@ -684,6 +716,16 @@ export default function App() {
   }, []);
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 20000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    for (const m of matches) {
+      const ot = openTime(m);
+      if (ot <= now && ot > now - 60000 && !alertedWindows.current.has(m.id)) {
+        alertedWindows.current.add(m.id);
+        say(`🔓 Janela aberta: ${m.home} × ${m.away} — palpite até 15min antes!`);
+      }
+    }
+  }, [now, matches, say]);
 
   const loadAll = useCallback(async () => {
     const [mq, uq, pq, rq] = await Promise.all([
@@ -810,6 +852,23 @@ export default function App() {
     return rows;
   }, [users, matches, results, picksAll, champPicks, worldChampion]);
 
+  const rankHistory = useMemo(() => {
+    const sorted = [...matches].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
+    const cumulative = {};
+    users.forEach((u) => { cumulative[u.slug] = 0; });
+    const history = [];
+    for (const m of sorted) {
+      const res = results[m.id];
+      if (!res) continue;
+      for (const u of users) {
+        const p = points(picksAll[u.slug]?.[m.id], res);
+        if (p != null) cumulative[u.slug] = (cumulative[u.slug] || 0) + p;
+      }
+      history.push({ matchLabel: `${m.home.slice(0,3)}×${m.away.slice(0,3)}`, scores: { ...cumulative } });
+    }
+    return history;
+  }, [matches, results, users, picksAll]);
+
   const liveScores = useLiveScores(matches, me, rpc);
 
   const pendentes = useMemo(() => {
@@ -843,10 +902,23 @@ export default function App() {
     );
   }
 
+  const toggleDark = () => {
+    setDarkMode((d) => {
+      const next = !d;
+      localStorage.setItem('darkMode', next ? '1' : '0');
+      return next;
+    });
+  };
+
   return (
-    <div className="bl-app">
+    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
       <header className="bl-hero">
+        <div style={{ position: 'absolute', top: 12, right: 14 }}>
+          <button className="bl-dark-btn" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo escuro'}>
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+        </div>
         <div className="bl-crest">
           <img src="/logo.png" alt="EngSoc" className="bl-logo" />
           <span className="ano bl-display">★ 2026 ★</span>
@@ -892,7 +964,7 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
                 liveScores={liveScores} />
             )}
-            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'artilharia' && <ArtilhariaTab />}
             {tab === 'admin' && me.isAdmin && (
@@ -1022,9 +1094,34 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
     byDay[byDay.length - 1].items.push(m);
   }
 
+  const statsData = useMemo(() => {
+    const resultMatches = matches.filter((m) => results[m.id]);
+    if (resultMatches.length === 0) return null;
+    let totalPts = 0, exatos = 0, vencedores = 0, semPalpite = 0;
+    for (const m of resultMatches) {
+      const res = results[m.id];
+      const pick = myPicks[m.id];
+      if (!pick) { semPalpite++; continue; }
+      const p = points(pick, res);
+      if (p == null) { semPalpite++; continue; }
+      totalPts += p;
+      if (p === 3) exatos++;
+      if (p === 1) vencedores++;
+    }
+    return { totalPts, exatos, vencedores, semPalpite };
+  }, [matches, results, myPicks]);
+
   return (
     <section aria-label="Jogos">
       <ChampionCard myChampion={myChampion} onSave={onSaveChampion} busy={busy} />
+      {statsData && (
+        <div className="bl-stats-row">
+          <div className="bl-stat-box"><div className="sv">{statsData.totalPts}</div><div className="sl">Total de pontos</div></div>
+          <div className="bl-stat-box"><div className="sv">{statsData.exatos}</div><div className="sl">Placares exatos</div></div>
+          <div className="bl-stat-box"><div className="sv">{statsData.vencedores}</div><div className="sl">Acertos result.</div></div>
+          <div className="bl-stat-box"><div className="sv">{statsData.semPalpite}</div><div className="sl">Sem palpite</div></div>
+        </div>
+      )}
       <div className="bl-filtros" role="tablist" aria-label="Filtrar jogos">
         {[['todos', 'Todos'], ['abertos', 'Abertos'], ['pendentes', 'Sem palpite'], ['mata', 'Mata-mata']].map(([k, l]) => (
           <button key={k} className="bl-f" data-on={filtro === k ? 1 : 0} onClick={() => setFiltro(k)}>{l}</button>
@@ -1106,6 +1203,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
             <span className="bl-collapsed-name">{m.away}</span><Flag team={m.away} />
           </div>
           {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
+          {saved ? (
+            <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
+          ) : (
+            <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>
+          )}
           <span className="bl-collapsed-expand">▸</span>
         </div>
       </article>
@@ -1452,7 +1554,39 @@ function ArtilhariaTab() {
 }
 
 /* ============================ Ranking ============================ */
-function RankingTab({ ranking, meSlug, results, worldChampion }) {
+const CHART_COLORS = ['#FFC629','#1E9E55','#2447C5','#D7263D','#9B59B6','#E67E22','#1ABC9C','#E91E63'];
+
+function RankHistoryChart({ rankHistory, ranking }) {
+  if (rankHistory.length < 2) return null;
+  const W = 600, H = 200, PAD = { t: 10, r: 10, b: 28, l: 28 };
+  const iW = W - PAD.l - PAD.r, iH = H - PAD.t - PAD.b;
+  const maxScore = Math.max(1, ...rankHistory.map((pt) => Math.max(...Object.values(pt.scores))));
+  const xStep = iW / (rankHistory.length - 1);
+  const yScale = (v) => iH - (v / maxScore) * iH;
+  return (
+    <div className="bl-chart">
+      <h3>Evolução no ranking</h3>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
+        {ranking.map((u, i) => {
+          const color = CHART_COLORS[i % CHART_COLORS.length];
+          const pts = rankHistory.map((pt, xi) => [PAD.l + xi * xStep, PAD.t + yScale(pt.scores[u.slug] || 0)]);
+          const d = pts.map((p, pi) => `${pi === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+          return <path key={u.slug} d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" opacity={0.9} />;
+        })}
+        {rankHistory.map((pt, xi) => (
+          <text key={xi} x={PAD.l + xi * xStep} y={H - 6} textAnchor="middle" fontSize="8" fill="rgba(110,122,112,.8)">{pt.matchLabel}</text>
+        ))}
+      </svg>
+      <div className="bl-chart-legend">
+        {ranking.map((u, i) => (
+          <span key={u.slug}><i style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />{u.name}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
   const encerrados = Object.keys(results || {}).length;
   return (
     <section aria-label="Classificação">
@@ -1491,6 +1625,7 @@ function RankingTab({ ranking, meSlug, results, worldChampion }) {
         {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado lançado · Acertar o campeão vale +{CHAMPION_PTS} pts{worldChampion ? ` (campeão definido: ${worldChampion})` : ''}.<br />
         Desempate: mais placares exatos, depois mais vencedores.
       </p>
+      {rankHistory && <RankHistoryChart rankHistory={rankHistory} ranking={ranking} />}
     </section>
   );
 }

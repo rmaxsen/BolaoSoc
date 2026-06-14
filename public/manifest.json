@@ -1,0 +1,13 @@
+{
+  "name": "Bolão da Copa EngSoc",
+  "short_name": "Bolão 26",
+  "description": "Bolão da Copa do Mundo 2026 — EngSoc",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B2A1C",
+  "theme_color": "#FFC629",
+  "icons": [
+    {"src": "/logo.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/logo.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
