@@ -1000,6 +1000,7 @@ function ChampionCard({ myChampion, onSave, busy }) {
 /* ============================ Jogos ============================ */
 function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const [hideFinished, setHideFinished] = useState(false);
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
     if (filtro === 'abertos') return isOpenWindow(m, now);
@@ -1032,22 +1033,34 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         ))}
       </div>
 
+      {filtered.some((m) => results[m.id]) && (
+        <div style={{ textAlign: 'right', marginBottom: 8 }}>
+          <button className="bl-mini" onClick={() => setHideFinished((h) => !h)}>
+            {hideFinished ? '👁 mostrar encerrados' : '🙈 ocultar encerrados'}
+          </button>
+        </div>
+      )}
+
       {byDay.length === 0 && (
         <div className="bl-panel" style={{ textAlign: 'center' }}>
           <p style={{ margin: 0 }}>Nenhum jogo aqui. {filtro === 'mata' ? 'O organizador adiciona o mata-mata quando os cruzamentos saírem.' : 'Mude o filtro acima.'}</p>
         </div>
       )}
 
-      {byDay.map(({ day, items }) => (
-        <div key={dayKey(day)}>
-          <div className="bl-day"><span>{fmtDay(day)}</span></div>
-          {items.map((m) => (
-            <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-              picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-              setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
-          ))}
-        </div>
-      ))}
+      {byDay.map(({ day, items }) => {
+        const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+        if (!visible.length) return null;
+        return (
+          <div key={dayKey(day)}>
+            <div className="bl-day"><span>{fmtDay(day)}</span></div>
+            {visible.map((m) => (
+              <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
+            ))}
+          </div>
+        );
+      })}
     </section>
   );
 }
