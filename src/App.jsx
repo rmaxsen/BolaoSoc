@@ -491,6 +491,8 @@ const CSS = `
 .bl-mini:focus-visible{outline:2px solid var(--royal);outline-offset:2px;border-radius:4px}
 .bl-pts{font-weight:900;border-radius:999px;padding:4px 13px;font-size:13px}
 .bl-pts.p3{background:var(--canarinho);color:#241a00} .bl-pts.p1{background:var(--bandeira);color:#fff} .bl-pts.p0{background:#d8d3c4;color:#5c5c52}
+.bl-pts-live{opacity:.75;outline:2px dashed currentColor;outline-offset:2px}
+.bl-pts-projected{opacity:.75;font-style:italic}
 
 /* ── Picks accordion ── */
 .bl-picks{border-top:1px solid rgba(32,48,31,.15);margin:10px 4px 4px;padding:10px 6px 4px;font-size:13px}
@@ -1403,6 +1405,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
+  const liveResult = isLive && liveScore?.home != null ? { home: liveScore.home, away: liveScore.away } : null;
+  const livePts = !res && liveResult && saved ? points(saved, liveResult) : null;
   const liveFinished = !res && liveScore?.status === 'FT' && liveScore?.home != null;
   const isFinished = !!res || liveFinished;
   const manuallyExpanded = useRef(false);
@@ -1507,11 +1511,15 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <span>
             {beforeWindow && cdAbre && <>⏳ Abre em <b>{cdAbre}</b></>}
             {inWindow && cdFecha && <>🔓 Fecha em <b>{cdFecha}</b></>}
-            {locked && !res && <>🔒 Palpites encerrados</>}
+            {locked && !res && !liveResult && <>🔒 Palpites encerrados</>}
             {res && saved && pts != null && (
               <span className={`bl-pts p${pts}`}>{pts === 3 ? '⭐ +3 pts' : pts === 1 ? '+1 pt' : '0 pt'}</span>
             )}
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
+            {!res && liveResult && saved && livePts != null && (
+              <span className={`bl-pts p${livePts} bl-pts-live`}>{livePts === 3 ? '⭐ +3 pts' : livePts === 1 ? '+1 pt' : '0 pt'}</span>
+            )}
+            {!res && liveResult && !saved && <span className="bl-pts p0 bl-pts-live">sem palpite</span>}
           </span>
           <span style={{ display: 'flex', gap: 12 }}>
             {isFinished && (
@@ -1532,13 +1540,19 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
       {open && (
         <div className="bl-picks">
           {others.map(({ slug, name, pick }) => {
-            const p = res && pick ? points(pick, res) : null;
+            const effectiveRes = res || liveResult;
+            const p = effectiveRes && pick ? points(pick, effectiveRes) : null;
+            const isProjected = !res && !!liveResult;
             return (
               <div className={`row ${slug === me?.slug ? 'me' : ''}`} key={slug}>
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
                   {pick ? `${pick.home} × ${pick.away}` : 'ainda não palpitou'}
-                  {p != null && <b style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
+                  {p != null && (
+                    <b className={isProjected ? 'bl-pts-projected' : ''} style={{ marginLeft: 8 }}>
+                      {p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}
+                    </b>
+                  )}
                 </span>
               </div>
             );
