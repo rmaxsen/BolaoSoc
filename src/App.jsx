@@ -402,7 +402,7 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:calc(32px + env(safe-area-inset-top))}
+.bl-app[data-tb="1"] .bl-tabs{top:var(--tb-h,0px)}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
@@ -754,6 +754,23 @@ const CSS = `
 
 
 /* ============================================================ App ============================================================ */
+function TopBarMeasured(props) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const h = el.getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--tb-h', h > 0 ? `${h}px` : '0px');
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [props.topBarVisible]);
+  return <div ref={ref}><TopBar {...props} /></div>;
+}
+
 function TopBar({ matches, results, liveScores, now }) {
   // 1) Tem jogo ao vivo?
   const live = matches.find((m) => {
@@ -1126,7 +1143,7 @@ export default function App() {
   return (
     <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
       <style>{CSS}</style>
-      <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
+      <TopBarMeasured matches={matches} results={results} liveScores={liveScores} now={now} topBarVisible={topBarVisible} />
       <header className="bl-hero">
         <div className="bl-crest">
           <img src="/logo.png" alt="EngSoc" className="bl-logo" />
