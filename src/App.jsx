@@ -1402,7 +1402,8 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
             <input id="fp-a" className="bl-in" inputMode="numeric" maxLength={2} value={fpA}
               onChange={(e) => setFpA(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="ex: 1" /></div>
         </div>
-        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !fpUser || !fpMatch}
+        <div style={{ display: 'flex', gap: 8 }}>
+        <button className="bl-btn verde" style={{ flex: 1 }} disabled={busy || !fpUser || !fpMatch}
           onClick={() => {
             const h = fpH === '' ? null : parseInt(fpH, 10);
             const a = fpA === '' ? null : parseInt(fpA, 10);
@@ -1413,6 +1414,16 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
           }}>
           Salvar palpite forçado
         </button>
+        <button className="bl-btn" style={{ background: 'var(--apito)', color: '#fff', flex: 0 }} disabled={busy || !fpUser || !fpMatch}
+          onClick={() => {
+            if (!window.confirm(`Apagar palpite de ${fpUser} no jogo selecionado?`)) return;
+            run(() => rpc('admin_force_pick', { p_name: me.name, p_pin: me.pin, p_target: fpUser, p_match: fpMatch, p_home: null, p_away: null })
+              .then(() => { setFpH(''); setFpA(''); }),
+              'Palpite apagado');
+          }}>
+          🗑 Apagar
+        </button>
+        </div>
       </div>
 
       <div className="bl-panel">
