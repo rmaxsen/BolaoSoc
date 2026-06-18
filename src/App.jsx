@@ -1000,7 +1000,8 @@ function ChampionCard({ myChampion, onSave, busy }) {
 /* ============================ Jogos ============================ */
 function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-  const [hideFinished, setHideFinished] = useState(false);
+  const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
+  const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
     if (filtro === 'abertos') return isOpenWindow(m, now);
@@ -1035,7 +1036,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
 
       {filtered.some((m) => results[m.id]) && (
         <div style={{ textAlign: 'right', marginBottom: 8 }}>
-          <button className="bl-mini" onClick={() => setHideFinished((h) => !h)}>
+          <button className="bl-mini" onClick={() => toggleHideFinished(!hideFinished)}>
             {hideFinished ? '👁 mostrar encerrados' : '🙈 ocultar encerrados'}
           </button>
         </div>
