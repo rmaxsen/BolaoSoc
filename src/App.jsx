@@ -402,7 +402,7 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:calc(31px + env(safe-area-inset-top))}
+.bl-app[data-tb="1"] .bl-tabs{top:calc(32px + env(safe-area-inset-top))}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
