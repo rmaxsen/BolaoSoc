@@ -402,6 +402,7 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
+.bl-app[data-tb="1"] .bl-tabs{top:38px}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
@@ -1055,6 +1056,13 @@ export default function App() {
 
   const liveScores = useLiveScores(matches, me, rpc);
 
+  const topBarVisible = useMemo(() => {
+    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
+    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
+    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
+    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
+  }, [matches, results, liveScores, now]);
+
   const liveRanking = useMemo(() => {
     const LIVE_ST = new Set(['1H','2H','HT','ET','P','LIVE','FT']);
     return ranking.map((row) => {
@@ -1116,7 +1124,7 @@ export default function App() {
   };
 
   return (
-    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
+    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
       <style>{CSS}</style>
       <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
       <header className="bl-hero">
