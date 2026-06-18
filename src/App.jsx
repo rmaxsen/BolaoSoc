@@ -300,7 +300,7 @@ const CSS = `
 
 /* ── Hero ── */
 .bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal)}
-.bl-logo{width:90px;height:90px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+.bl-logo{width:90px;height:90px;object-fit:contain;margin-bottom:8px;border-radius:50%;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
 .bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:3px;border:3px solid var(--canarinho);
   border-radius:20px 20px 50% 50%/20px 20px 42% 42%;padding:16px 34px 24px;
   background:rgba(0,0,0,.30);
