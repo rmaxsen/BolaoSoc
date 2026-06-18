@@ -361,12 +361,27 @@ const CSS = `
     radial-gradient(ellipse 160% 60% at 50% -5%, rgba(255,198,41,.14), transparent 55%),
     radial-gradient(ellipse 90% 35% at 50% 105%, rgba(0,0,0,.45), transparent 65%),
     repeating-linear-gradient(0deg, var(--campo) 0 90px, var(--campo2) 90px 180px);
-  padding-bottom:96px;}
+  padding-bottom:96px;padding-top:env(safe-area-inset-top)}
+
+/* ── Top status bar ── */
+.bl-topbar{position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:env(safe-area-inset-top) 0 0;
+  background:rgba(11,42,28,.96);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none}
+.bl-topbar-in{display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);min-height:28px}
+.bl-topbar-live{display:inline-flex;align-items:center;gap:5px;color:var(--apito)}
+.bl-topbar-live .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.bl-topbar-score{font-weight:900;font-size:14px;color:var(--canarinho)}
+.bl-topbar-sep{color:rgba(244,240,228,.25);font-weight:400}
+.bl-topbar-dim{color:rgba(244,240,228,.55);font-weight:600}
+@media(prefers-reduced-motion:no-preference){.bl-topbar-live .dot{animation:bl-blink 1s ease-in-out infinite}}
+[data-theme="dark"] .bl-topbar{background:rgba(6,13,26,.96)}
 .bl-display{font-family:'Archivo Black','Archivo',sans-serif;letter-spacing:.5px}
 .bl-wrap{max-width:680px;margin:0 auto;padding:0 14px}
 
 /* ── Hero ── */
-.bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal)}
+.bl-hero{padding:34px 0 20px;text-align:center;color:var(--cal);padding-top:calc(34px + 38px + env(safe-area-inset-top))}
 .bl-logo{width:90px;height:90px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
 .bl-crest{display:inline-flex;flex-direction:column;align-items:center;gap:3px;border:3px solid var(--canarinho);
   border-radius:20px 20px 50% 50%/20px 20px 42% 42%;padding:16px 34px 24px;
@@ -663,6 +678,68 @@ const CSS = `
 `;
 
 /* ============================================================ App ============================================================ */
+function TopBar({ matches, results, liveScores, now }) {
+  // 1) Tem jogo ao vivo?
+  const live = matches.find((m) => {
+    const s = liveScores?.[m.id];
+    return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status);
+  });
+  if (live) {
+    const s = liveScores[live.id];
+    const elapsed = s.elapsed ? ` ${s.elapsed}` : '';
+    const statusLabel = s.status === 'HT' ? ' · Intervalo' : elapsed ? ` · ${elapsed}'` : '';
+    return (
+      <div className="bl-topbar">
+        <div className="bl-topbar-in">
+          <span className="bl-topbar-live"><span className="dot"/>AO VIVO</span>
+          <span>{flag(live.home)} {live.home}</span>
+          <span className="bl-topbar-score">{s.home ?? '–'} × {s.away ?? '–'}</span>
+          <span>{live.away} {flag(live.away)}</span>
+          {statusLabel && <span className="bl-topbar-dim">{statusLabel}</span>}
+        </div>
+      </div>
+    );
+  }
+
+  // 2) Janela aberta agora (sem palpite salvo não verificamos — só mostramos o jogo)
+  const aberto = matches.find((m) => !results[m.id] && isOpenWindow(m, now));
+  if (aberto) {
+    const fecha = fmtCountdown(lockTime(aberto) - now);
+    return (
+      <div className="bl-topbar">
+        <div className="bl-topbar-in">
+          <span style={{ color: 'var(--bandeira)', fontWeight: 900 }}>🔓</span>
+          <span>{flag(aberto.home)} {aberto.home}</span>
+          <span className="bl-topbar-sep">×</span>
+          <span>{aberto.away} {flag(aberto.away)}</span>
+          {fecha && <span className="bl-topbar-dim">· fecha em {fecha}</span>}
+        </div>
+      </div>
+    );
+  }
+
+  // 3) Próximo jogo que vai abrir em breve (< 3h)
+  const breve = matches
+    .filter((m) => !results[m.id] && now < openTime(m) && openTime(m) - now < 3 * 60 * 60 * 1000)
+    .sort((a, b) => openTime(a) - openTime(b))[0];
+  if (breve) {
+    const abre = fmtCountdown(openTime(breve) - now);
+    return (
+      <div className="bl-topbar">
+        <div className="bl-topbar-in">
+          <span className="bl-topbar-dim">Em breve:</span>
+          <span>{flag(breve.home)} {breve.home}</span>
+          <span className="bl-topbar-sep">×</span>
+          <span>{breve.away} {flag(breve.away)}</span>
+          {abre && <span className="bl-topbar-dim">· abre em {abre}</span>}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function SkeletonCard() {
   return (
     <div className="bl-card" style={{ cursor: 'default' }}>
@@ -918,6 +995,7 @@ export default function App() {
   return (
     <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
+      <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
       <header className="bl-hero">
         <div className="bl-crest">
           <img src="/logo.png" alt="EngSoc" className="bl-logo" />
