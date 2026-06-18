@@ -1236,7 +1236,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
     const t = setTimeout(() => {
       const el = firstOpenRef.current;
       if (!el) return;
-      const y = el.getBoundingClientRect().top + window.scrollY - 90;
+      const y = el.getBoundingClientRect().top + window.scrollY - 100;
       window.scrollTo({ top: y, behavior: 'smooth' });
     }, 400);
     return () => clearTimeout(t);
@@ -1318,19 +1318,17 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         return byDay.map(({ day, items }) => {
           const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
           if (!visible.length) return null;
+          const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
+          let dayRef = null;
+          if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
           return (
-            <div key={dayKey(day)}>
+            <div key={dayKey(day)} ref={dayRef}>
               <div className="bl-day"><span>{fmtDay(day)}</span></div>
-              {visible.map((m) => {
-                const isOpen = !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status);
-                let ref = null;
-                if (isOpen && !scrollAssigned) { ref = firstOpenRef; scrollAssigned = true; }
-                return (
-                  <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-                    picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-                    setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} scrollRef={ref} />
-                );
-              })}
+              {visible.map((m) => (
+                <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                  picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                  setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} scrollRef={null} />
+              ))}
             </div>
           );
         });
