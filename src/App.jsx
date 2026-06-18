@@ -376,7 +376,7 @@ const CSS = `
   background:rgba(11,42,28,.96);backdrop-filter:blur(14px);
   border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none}
 .bl-topbar-in{display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);min-height:28px}
+  padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);height:28px}
 .bl-topbar-live{display:inline-flex;align-items:center;gap:5px;color:var(--apito)}
 .bl-topbar-live .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .bl-topbar-score{font-weight:900;font-size:14px;color:var(--canarinho)}
@@ -402,7 +402,7 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:38px}
+.bl-app[data-tb="1"] .bl-tabs{top:39px}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
