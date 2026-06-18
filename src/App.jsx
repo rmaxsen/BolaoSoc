@@ -299,8 +299,7 @@ async function fetchArtilharia() {
     team: l.team?.displayName || l.team?.name || '—',
     teamAbbr: l.team?.abbreviation || '',
     goals: Number(l.value) || 0,
-    assists: Number((l.statistics || []).find((s) => s.name === 'goalAssists')?.value) || 0,
-    appearances: Number((l.statistics || []).find((s) => s.name === 'appearances')?.value) || 0,
+    headshot: l.athlete?.headshot?.href || null,
   })).filter((p) => p.goals > 0);
 }
 
@@ -1769,36 +1768,45 @@ function ArtilhariaTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>#</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)', width: 32 }}>#</th>
                 <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>Jogador</th>
-                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>⚽</th>
-                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>🅰</th>
-                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>J</th>
+                <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)', width: 40 }}>⚽</th>
               </tr>
             </thead>
             <tbody>
-              {state.data.map((p, i) => (
-                <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)', width: 32 }}>{i + 1}</td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <div style={{ fontWeight: 700 }}>{p.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Flag team={Object.keys(TEAM_EN).find((k) => TEAM_EN[k]?.some((v) => v.toLowerCase() === p.team.toLowerCase()) || k.toLowerCase() === p.team.toLowerCase()) || ''} size={14} />
-                      {p.team}
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 900, fontSize: 18 }}>{p.goals}</td>
-                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.assists || '—'}</td>
-                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.appearances}</td>
-                </tr>
-              ))}
+              {state.data.map((p, i) => {
+                const ptTeam = Object.keys(TEAM_EN).find((k) =>
+                  TEAM_EN[k]?.some((v) => v.toLowerCase() === p.team.toLowerCase()) || k.toLowerCase() === p.team.toLowerCase()
+                ) || '';
+                return (
+                  <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)' }}>{i + 1}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {p.headshot
+                          ? <img src={p.headshot} alt={p.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: 'var(--campo2)' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--campo2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👤</div>
+                        }
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{p.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                            <Flag team={ptTeam} size={16} />
+                            <span>{ptTeam || p.team}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 900, fontSize: 22 }}>{p.goals}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
       <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12 }}>
-        Dados via ESPN · ⚽ gols · 🅰 assistências · J jogos
+        Dados via ESPN
       </p>
     </section>
   );
