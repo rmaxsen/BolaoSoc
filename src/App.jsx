@@ -1292,8 +1292,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <div className="bl-collapsed-score">
             <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
           </div>
-          <div className="bl-collapsed-teams">
-            <span className="bl-collapsed-name">{m.away}</span><Flag team={m.away} />
+          <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
+            <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
           </div>
           {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
           {saved ? (
@@ -1764,7 +1764,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
         if (!ev) { skipped++; continue; }
         const comp = ev.competitions[0];
         const statusName = comp?.status?.type?.name || '';
-        if (statusName === 'STATUS_SCHEDULED') { skipped++; continue; }
+        if (statusName !== 'STATUS_FINAL' && statusName !== 'STATUS_FULL_TIME') { skipped++; continue; }
         const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
         const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
         const h = homeComp?.score != null ? Math.round(Number(homeComp.score)) : null;
