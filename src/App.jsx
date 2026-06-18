@@ -426,15 +426,16 @@ const CSS = `
 .bl-card:hover{transform:translateY(-3px);box-shadow:0 10px 0 rgba(0,0,0,.32),0 6px 32px rgba(0,0,0,.22)}
 .bl-card:hover::before{opacity:1}
 .bl-card-inner{border:2px dashed rgba(32,48,31,.2);border-radius:12px;margin:7px;padding:12px 12px 14px}
-.bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.75;transition:opacity .18s,transform .18s}
+.bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.78;transition:opacity .18s,transform .18s}
 .bl-card-collapsed:hover{opacity:1;transform:translateY(-1px)}
-.bl-collapsed-inner{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:nowrap;overflow:hidden}
-.bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:36px}
-.bl-collapsed-teams{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
-.bl-collapsed-teams .bl-collapsed-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bl-collapsed-score{display:flex;align-items:center;gap:4px;font-weight:900;font-size:16px;white-space:nowrap;padding:0 4px}
+.bl-collapsed-inner{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:10px 14px}
+.bl-collapsed-team{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.bl-collapsed-name{font-size:11px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;color:var(--tinta)}
+.bl-collapsed-center{display:flex;flex-direction:column;align-items:center;gap:4px}
+.bl-collapsed-score{font-weight:900;font-size:18px;white-space:nowrap;letter-spacing:1px}
 .bl-collapsed-x{color:var(--cinza);font-weight:400;font-size:13px}
-.bl-collapsed-expand{color:var(--cinza);font-size:14px;margin-left:4px}
+.bl-collapsed-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:center}
+.bl-collapsed-expand{color:var(--cinza);font-size:12px}
 .bl-collapse-btn{position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;
   font-size:11px;color:var(--cinza);padding:2px 6px;border-radius:8px;opacity:.6}
 .bl-collapse-btn:hover{opacity:1;background:rgba(0,0,0,.06)}
@@ -1378,24 +1379,29 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
     return (
       <article className="bl-card bl-card-collapsed" onClick={() => { manuallyExpanded.current = true; setCollapsed(false); }} title="Clique para expandir">
         <div className="bl-collapsed-inner">
-          <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
-          <div className="bl-collapsed-teams">
-            <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
+          <div className="bl-collapsed-team">
+            <Flag team={m.home} size={32} />
+            <span className="bl-collapsed-name">{m.home}</span>
           </div>
-          <div className="bl-collapsed-score">
-            <span>{collapseScore?.home}</span><span className="bl-collapsed-x">×</span><span>{collapseScore?.away}</span>
-            {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)', marginLeft: 3 }}>ESPN</span>}
+          <div className="bl-collapsed-center">
+            <div className="bl-collapsed-score">
+              <span>{collapseScore?.home}</span>
+              <span className="bl-collapsed-x"> × </span>
+              <span>{collapseScore?.away}</span>
+            </div>
+            <div className="bl-collapsed-meta">
+              {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)' }}>ESPN</span>}
+              {pts != null && <span className={`bl-pts p${pts}`} style={{ fontSize: 10, padding: '1px 7px' }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
+              {saved
+                ? <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
+                : <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>}
+              <span className="bl-collapsed-expand">▸</span>
+            </div>
           </div>
-          <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
-            <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
+          <div className="bl-collapsed-team">
+            <Flag team={m.away} size={32} />
+            <span className="bl-collapsed-name">{m.away}</span>
           </div>
-          {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
-          {saved ? (
-            <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
-          ) : (
-            <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>
-          )}
-          <span className="bl-collapsed-expand">▸</span>
         </div>
       </article>
     );
