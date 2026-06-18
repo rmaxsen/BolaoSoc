@@ -204,15 +204,25 @@ async function espnScoreboard(dateStr) {
   return sb.events || [];
 }
 
-async function fetchMatchInfo(home, away, kickoff) {
+// Busca o evento ESPN para um jogo, tentando a data do kickoff, o dia anterior e o scoreboard do dia atual.
+async function findEspnEventForMatch(home, away, kickoff) {
   const dateStr = (kickoff || '').slice(0, 10).replace(/-/g, '');
-  let events = await espnScoreboard(dateStr);
-  let ev = findEspnEvent(events, home, away);
-  // fallback: busca sem filtro de data (jogos do dia atual na ESPN)
-  if (!ev && dateStr) {
-    events = await espnScoreboard('');
-    ev = findEspnEvent(events, home, away);
+  // dia anterior (jogo às 23h Brasília pode ser categorizado no dia de antes pela ESPN)
+  const prevDate = dateStr ? (() => {
+    const d = new Date(kickoff); d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10).replace(/-/g, '');
+  })() : '';
+
+  for (const ds of [dateStr, prevDate, '']) {
+    const events = await espnScoreboard(ds);
+    const ev = findEspnEvent(events, home, away);
+    if (ev) return ev;
   }
+  return null;
+}
+
+async function fetchMatchInfo(home, away, kickoff) {
+  const ev = await findEspnEventForMatch(home, away, kickoff);
   if (!ev) return { found: false, message: 'Ainda não achei dados oficiais desse jogo.' };
 
   const comp = ev.competitions[0];
@@ -1312,10 +1322,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
   async function fetchEspnScore(m) {
     setFetching((f) => ({ ...f, [m.id]: true }));
     try {
-      const dateStr = m.kickoff.slice(0, 10).replace(/-/g, '');
-      let events = await espnScoreboard(dateStr);
-      let ev = findEspnEvent(events, m.home, m.away);
-      if (!ev) { events = await espnScoreboard(''); ev = findEspnEvent(events, m.home, m.away); }
+      const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
       if (!ev) { onError('Jogo não encontrado na ESPN ainda.'); return; }
       const comp = ev.competitions[0];
       const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
@@ -1335,15 +1342,8 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
     setSyncing(true);
     let saved = 0, skipped = 0;
     try {
-      // Busca o scoreboard uma vez (sem data) para pegar jogos recentes
-      const todayEvents = await espnScoreboard('');
       for (const m of started) {
-        const dateStr = m.kickoff.slice(0, 10).replace(/-/g, '');
-        let ev = findEspnEvent(todayEvents, m.home, m.away);
-        if (!ev) {
-          const dateEvents = await espnScoreboard(dateStr);
-          ev = findEspnEvent(dateEvents, m.home, m.away);
-        }
+        const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
         if (!ev) { skipped++; continue; }
         const comp = ev.competitions[0];
         const statusName = comp?.status?.type?.name || '';
