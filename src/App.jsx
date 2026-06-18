@@ -119,7 +119,7 @@ const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 const TEAM_EN = {
   'México': ['Mexico'], 'África do Sul': ['South Africa'], 'Coreia do Sul': ['South Korea', 'Korea Republic'],
-  'Rep. Tcheca': ['Czech Republic', 'Czechia'], 'Canadá': ['Canada'], 'Bósnia e Herzegovina': ['Bosnia and Herzegovina', 'Bosnia'],
+  'Rep. Tcheca': ['Czech Republic', 'Czechia'], 'Canadá': ['Canada'], 'Bósnia e Herzegovina': ['Bosnia and Herzegovina', 'Bosnia', 'Bosnia-Herzegovina'],
   'Catar': ['Qatar'], 'Suíça': ['Switzerland'], 'Brasil': ['Brazil'], 'Marrocos': ['Morocco'], 'Haiti': ['Haiti'],
   'Escócia': ['Scotland'], 'Estados Unidos': ['USA', 'United States'], 'Paraguai': ['Paraguay'], 'Austrália': ['Australia'],
   'Turquia': ['Turkey', 'Turkiye', 'Türkiye'], 'Alemanha': ['Germany'], 'Curaçao': ['Curacao'],
@@ -184,8 +184,9 @@ function espnStatus(comp) {
 
 // Extrai todos os nomes possíveis de um competitor ESPN para o matchesTeam
 function espnTeamNames(c) {
+  if (!c) return [];
   const t = c.team || {};
-  return [t.displayName, t.name, t.shortDisplayName, t.abbreviation].filter(Boolean);
+  return [t.displayName, t.name, t.shortDisplayName, t.abbreviation, t.location].filter(Boolean);
 }
 
 function findEspnEvent(events, home, away) {
