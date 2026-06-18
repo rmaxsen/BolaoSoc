@@ -103,6 +103,14 @@ const rpc = async (fn, args) => {
   return data;
 };
 
+/* Fetch das funções serverless (/api/*) — proxy seguro da API-Football. */
+const apiFetch = async (path) => {
+  const r = await fetch(path);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.message || 'Erro ao buscar dados.'); e.kind = j.error; throw e; }
+  return j;
+};
+
 /* ============================================================ CSS ============================================================ */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
@@ -338,6 +346,45 @@ const CSS = `
   font-weight:900;font-size:11px;border-radius:999px;padding:3px 10px}
 .bl-rank .champ-col{font-size:11px;text-align:center}
 .bl-champ-hit{color:var(--canarinho);font-weight:900}
+
+/* ── Tabela (standings) ── */
+.bl-grp{background:var(--papel);border:2px solid #20301F;border-radius:16px;margin-top:14px;overflow:hidden;
+  box-shadow:0 5px 0 rgba(0,0,0,.28)}
+.bl-grp h3{margin:0;padding:12px 14px;background:var(--tinta);color:var(--cal);font-size:14px;letter-spacing:1px}
+.bl-grp table{width:100%;border-collapse:collapse;font-size:13px}
+.bl-grp th{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--cinza);text-align:center;padding:8px 4px;font-weight:800}
+.bl-grp th.l,.bl-grp td.l{text-align:left}
+.bl-grp td{padding:9px 4px;text-align:center;border-top:1px solid rgba(32,48,31,.1);font-variant-numeric:tabular-nums}
+.bl-grp td.tname{font-weight:700;display:flex;align-items:center;gap:7px;text-align:left}
+.bl-grp td.tname img{width:20px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.bl-grp tr.qual td{background:rgba(30,158,85,.09)}
+.bl-grp td.pts{font-weight:900}
+.bl-grp .pos{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:11px;background:#E8E3D3}
+.bl-grp tr.qual .pos{background:var(--bandeira);color:#fff}
+
+/* ── Painel de info do jogo ── */
+.bl-mi{border-top:1px dashed rgba(32,48,31,.25);margin:8px 6px 4px;padding:10px 4px 4px;font-size:13px}
+.bl-mi-live{display:inline-flex;align-items:center;gap:6px;background:var(--apito);color:#fff;font-weight:900;
+  font-size:11px;border-radius:999px;padding:3px 10px}
+.bl-mi-live .dot{width:7px;height:7px;border-radius:50%;background:#fff}
+.bl-mi h4{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--cinza)}
+.bl-mi .ev{display:flex;gap:8px;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(32,48,31,.06)}
+.bl-mi .ev .mn{font-weight:900;color:var(--tinta);min-width:34px}
+.bl-mi .xi{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:12px}
+.bl-mi .xi .pl{display:flex;gap:6px}.bl-mi .xi .pl .n{color:var(--cinza);min-width:20px;font-weight:800}
+.bl-mi .form{font-weight:900;color:var(--royal);font-size:12px}
+.bl-mi .st{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(32,48,31,.07)}
+.bl-mi .st .lbl{font-size:11px;color:var(--cinza);flex:1;text-align:center}
+.bl-mi .st b{min-width:42px;text-align:center}
+.bl-mi .h2h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(32,48,31,.06);font-size:12px}
+.bl-mi-dim{color:var(--cinza);font-size:12.5px;padding:6px 0}
+.bl-mi-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.bl-mi-tabs button{border:1.5px solid rgba(32,48,31,.25);background:#fff;border-radius:999px;padding:5px 12px;
+  font:inherit;font-size:11.5px;font-weight:800;cursor:pointer;color:var(--cinza)}
+.bl-mi-tabs button[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
+@media(prefers-reduced-motion:no-preference){.bl-mi-live .dot{animation:bl-blink 1s ease-in-out infinite}}
+@keyframes bl-blink{50%{opacity:.25}}
 `;
 
 /* ============================================================ App ============================================================ */
@@ -585,6 +632,7 @@ export default function App() {
                 Jogos {pendentes > 0 && <span className="bl-badge">{pendentes}</span>}
               </button>
               <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); }}>Ranking</button>
+              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => setTab('tabela')}>Tabela</button>
               {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); }}>Admin</button>}
             </div>
           </nav>
@@ -597,6 +645,7 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
                 worldChampion={worldChampion}
@@ -756,6 +805,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
 
 function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore }) {
   const [open, setOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const locked = isLocked(m, now);
   const inWindow = isOpenWindow(m, now);
   const beforeWindow = now < openTime(m);
@@ -814,11 +864,18 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
             )}
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
           </span>
-          <button className="bl-mini" onClick={() => setOpen((o) => !o)}>
-            {open ? 'esconder palpites' : `palpites da galera (${quantos})`}
-          </button>
+          <span style={{ display: 'flex', gap: 12 }}>
+            <button className="bl-mini" onClick={() => setInfoOpen((o) => !o)}>
+              {infoOpen ? 'esconder info' : '📊 info do jogo'}
+            </button>
+            <button className="bl-mini" onClick={() => setOpen((o) => !o)}>
+              {open ? 'esconder palpites' : `palpites (${quantos})`}
+            </button>
+          </span>
         </div>
       </div>
+
+      {infoOpen && <MatchInfo m={m} />}
 
       {open && (
         <div className="bl-picks">
@@ -837,6 +894,185 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         </div>
       )}
     </article>
+  );
+}
+
+/* ============================ Info do jogo (API-Football) ============================ */
+const EV_ICON = (e) => {
+  const t = (e.type || '').toLowerCase(), d = (e.detail || '').toLowerCase();
+  if (t === 'goal') return d.includes('own') ? '⚽🔴' : d.includes('penalty') ? '⚽(P)' : '⚽';
+  if (t === 'card') return d.includes('yellow') ? '🟨' : '🟥';
+  if (t === 'subst') return '🔄';
+  return '•';
+};
+
+function MatchInfo({ m }) {
+  const [state, setState] = useState({ loading: true });
+  const [sub, setSub] = useState('resumo');
+
+  useEffect(() => {
+    let alive = true;
+    setState({ loading: true });
+    const q = `?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&date=${encodeURIComponent(m.kickoff)}`;
+    apiFetch('/api/match' + q)
+      .then((d) => { if (alive) setState({ loading: false, data: d }); })
+      .catch((e) => { if (alive) setState({ loading: false, error: e.message, kind: e.kind }); });
+    return () => { alive = false; };
+  }, [m.home, m.away, m.kickoff]);
+
+  if (state.loading) return <div className="bl-mi"><div className="bl-mi-dim">⌛ Buscando dados do jogo…</div></div>;
+  if (state.error) return (
+    <div className="bl-mi"><div className="bl-mi-dim">
+      {state.kind === 'no_key'
+        ? '🔑 Os dados ao vivo ainda não foram ativados (falta a chave da API na Vercel).'
+        : `Não consegui carregar agora. ${state.error}`}
+    </div></div>
+  );
+  const d = state.data;
+  if (!d?.found) return <div className="bl-mi"><div className="bl-mi-dim">{d?.message || 'Sem dados oficiais desse jogo ainda.'}</div></div>;
+
+  const live = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT'].includes(d.status?.short);
+  const finished = ['FT', 'AET', 'PEN'].includes(d.status?.short);
+  const tabs = [['resumo', 'Resumo'], ['escala', 'Escalação'], ['stats', 'Estatísticas'], ['h2h', 'Confrontos']];
+
+  return (
+    <div className="bl-mi">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {live && <span className="bl-mi-live"><span className="dot" />AO VIVO {d.status?.elapsed ? `${d.status.elapsed}'` : ''}</span>}
+        <span style={{ fontWeight: 900, fontSize: 18 }}>
+          {d.teams?.home?.name} <b style={{ color: 'var(--apito)' }}>{d.goals?.home ?? '–'}</b>
+          {' × '}
+          <b style={{ color: 'var(--apito)' }}>{d.goals?.away ?? '–'}</b> {d.teams?.away?.name}
+        </span>
+        {!live && <span style={{ fontSize: 12, color: 'var(--cinza)' }}>{finished ? 'Encerrado' : d.status?.long}</span>}
+      </div>
+
+      <div className="bl-mi-tabs" style={{ marginTop: 10 }}>
+        {tabs.map(([k, l]) => <button key={k} data-on={sub === k ? 1 : 0} onClick={() => setSub(k)}>{l}</button>)}
+      </div>
+
+      {sub === 'resumo' && (
+        <div>
+          {d.events?.length ? d.events.map((e, i) => (
+            <div className="ev" key={i}>
+              <span className="mn">{e.minute != null ? `${e.minute}${e.extra ? '+' + e.extra : ''}'` : ''}</span>
+              <span>{EV_ICON(e)}</span>
+              <span><b>{e.player || '—'}</b>{e.assist ? <span style={{ color: 'var(--cinza)' }}> (assist. {e.assist})</span> : ''} · <span style={{ color: 'var(--cinza)' }}>{e.team}</span></span>
+            </div>
+          )) : <div className="bl-mi-dim">Sem lances registrados ainda.</div>}
+          {d.venue?.name && <div className="bl-mi-dim">🏟️ {d.venue.name}{d.venue.city ? ` · ${d.venue.city}` : ''}</div>}
+        </div>
+      )}
+
+      {sub === 'escala' && (
+        <div>
+          {d.lineups?.length ? d.lineups.map((l, i) => (
+            <div key={i}>
+              <h4>{l.team} {l.formation ? <span className="form">· {l.formation}</span> : ''} {l.coach ? <span style={{ color: 'var(--cinza)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· téc. {l.coach}</span> : ''}</h4>
+              <div className="xi">
+                {l.startXI.map((p, j) => <span className="pl" key={j}><span className="n">{p.number ?? ''}</span>{p.name}</span>)}
+              </div>
+              {l.subs?.length > 0 && <div className="bl-mi-dim" style={{ marginTop: 4 }}>Banco: {l.subs.map((p) => p.name).join(', ')}</div>}
+            </div>
+          )) : <div className="bl-mi-dim">Escalações saem perto do início do jogo.</div>}
+        </div>
+      )}
+
+      {sub === 'stats' && (
+        <div>
+          {d.statistics?.length === 2 ? (() => {
+            const [A, B] = d.statistics;
+            const types = A.items.map((x) => x.type);
+            return types.map((tp, i) => (
+              <div className="st" key={i}>
+                <b>{A.items[i]?.value ?? '–'}</b>
+                <span className="lbl">{tp}</span>
+                <b>{B.items.find((x) => x.type === tp)?.value ?? '–'}</b>
+              </div>
+            ));
+          })() : <div className="bl-mi-dim">Estatísticas aparecem com o jogo em andamento.</div>}
+        </div>
+      )}
+
+      {sub === 'h2h' && (
+        <div>
+          {d.h2h?.length ? d.h2h.map((g, i) => (
+            <div className="h2h" key={i}>
+              <span>{g.home} <b>{g.gh}×{g.ga}</b> {g.away}</span>
+              <span style={{ color: 'var(--cinza)' }}>{g.date ? new Date(g.date).getFullYear() : ''} {g.league ? `· ${g.league}` : ''}</span>
+            </div>
+          )) : <div className="bl-mi-dim">Sem confrontos recentes entre os dois.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================ Tabela (standings da API) ============================ */
+function TabelaTab() {
+  const [state, setState] = useState({ loading: true });
+
+  const load = useCallback(() => {
+    setState({ loading: true });
+    apiFetch('/api/standings')
+      .then((d) => setState({ loading: false, data: d }))
+      .catch((e) => setState({ loading: false, error: e.message, kind: e.kind }));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <section aria-label="Tabela dos grupos">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
+        <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>Tabela dos grupos</h2>
+        <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
+      </div>
+
+      {state.loading && <div className="bl-grp" style={{ padding: 0 }}><div className="bl-skel" style={{ height: 200, margin: 0, borderRadius: 0 }} /></div>}
+
+      {state.error && (
+        <div className="bl-panel" style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0 }}>
+            {state.kind === 'no_key'
+              ? '🔑 A tabela ao vivo precisa da chave da API configurada na Vercel (API_FOOTBALL_KEY).'
+              : `Não consegui carregar a tabela agora. ${state.error}`}
+          </p>
+        </div>
+      )}
+
+      {state.data && state.data.groups?.length === 0 && (
+        <div className="bl-panel" style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0 }}>A API ainda não publicou a classificação da Copa.</p>
+        </div>
+      )}
+
+      {state.data?.groups?.map((g) => (
+        <div className="bl-grp" key={g.group}>
+          <h3 className="bl-display">{g.group}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th></th><th className="l">Seleção</th>
+                <th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.rows.map((t) => (
+                <tr key={t.team} className={t.rank <= 2 ? 'qual' : ''}>
+                  <td><span className="pos">{t.rank}</span></td>
+                  <td className="tname">{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.team}</td>
+                  <td>{t.played}</td><td>{t.win}</td><td>{t.draw}</td><td>{t.lose}</td>
+                  <td>{t.gd}</td><td className="pts">{t.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
+        Dados ao vivo via API-Football · os 2 primeiros de cada grupo (em verde) avançam.
+      </p>
+    </section>
   );
 }
 
