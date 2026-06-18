@@ -61,6 +61,14 @@ function Flag({ team, size = 44 }) {
   );
 }
 
+function Avatar({ user, size = 36 }) {
+  if (!user) return null;
+  const s = { width: size, height: size };
+  if (user.avatar_url) return <img src={user.avatar_url} className="bl-avatar" alt={user.name} style={s} />;
+  const initial = (user.name || '?')[0].toUpperCase();
+  return <div className="bl-avatar-initials" style={{ ...s, fontSize: Math.round(size * 0.42) }}>{initial}</div>;
+}
+
 /* Campeão: palpite extra (5 pts), fecha em 21/06/2026 23:59 Brasília. */
 const CHAMPION_PTS = 5;
 const CHAMPION_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
@@ -541,6 +549,22 @@ const CSS = `
 .bl-medal.m2{background:linear-gradient(135deg,#F4F4F4,#B2B9C2);box-shadow:0 2px 8px rgba(0,0,0,.22)}
 .bl-medal.m3{background:linear-gradient(135deg,#F2C090,#A85020);box-shadow:0 2px 8px rgba(168,80,32,.35)}
 .bl-medal.mx{background:#E8E3D3;font-size:12px}
+.bl-avatar{border-radius:50%;object-fit:cover;display:block;flex-shrink:0}
+.bl-avatar-initials{border-radius:50%;background:linear-gradient(135deg,var(--bandeira),#1a5c2a);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0;text-transform:uppercase}
+.bl-avatar-upload{position:relative;cursor:pointer;display:inline-block}
+.bl-avatar-upload input[type=file]{display:none}
+.bl-avatar-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;font-size:20px;pointer-events:none}
+.bl-avatar-upload:hover .bl-avatar-overlay,.bl-avatar-upload:active .bl-avatar-overlay{opacity:1}
+.bl-perfil-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.bl-perfil-nameblock{flex:1;min-width:0}
+.bl-perfil-nameblock h2{margin:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-name-edit-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.bl-name-edit-row input{flex:1;background:var(--campo2);border:1.5px solid #20301F;border-radius:8px;
+  color:var(--tinta);padding:7px 10px;font-size:14px;outline:none;min-width:0}
+.bl-name-edit-row input:focus{border-color:var(--bandeira)}
+.bl-cooldown-msg{font-size:11px;color:var(--cinza);margin-top:4px}
 
 /* ── Panels / forms ── */
 .bl-panel{background:var(--papel);border:2px solid #20301F;border-radius:18px;
@@ -626,6 +650,8 @@ const CSS = `
 /* ── Dark mode toggle ── */
 .bl-dark-btn{border:1.5px solid rgba(255,198,41,.4);background:rgba(0,0,0,.2);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;color:var(--cal);line-height:1;transition:background .2s}
 .bl-dark-btn:hover{background:rgba(255,198,41,.15)}
+.bl-btn-sm{border:1.5px solid #20301F;background:var(--bandeira);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#fff;transition:opacity .15s}
+.bl-btn-sm:disabled{opacity:.5;cursor:not-allowed}
 .bl-toggle-btn{border:1.5px solid rgba(32,48,31,.35);background:transparent;border-radius:8px;padding:6px 14px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--cinza);transition:background .18s,color .18s,border-color .18s}
 .bl-toggle-btn:hover,.bl-toggle-btn[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 
@@ -964,6 +990,15 @@ export default function App() {
     } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
+  function handleProfileUpdate(changes) {
+    const updated = { ...me, ...changes };
+    setMe(updated);
+    saveSession(updated);
+    setUsers((prev) => prev.map((u) => u.slug === me.slug ? { ...u, ...changes } : u));
+    if (changes.name) say(`Nome atualizado: ${changes.name} ✅`);
+    else say('Foto atualizada ✅');
+  }
+
   /* ---------- ranking ---------- */
   const ranking = useMemo(() => {
     const rows = users.map((u) => {
@@ -976,7 +1011,7 @@ export default function App() {
       const champTeam = champPicks[u.slug] || null;
       const champHit = worldChampion && champTeam === worldChampion;
       if (champHit) total += CHAMPION_PTS;
-      return { slug: u.slug, name: u.name, total, exatos, vencedores, champTeam, champHit };
+      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit };
     });
     rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
     return rows;
@@ -1121,7 +1156,7 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
                 liveScores={liveScores} />
             )}
-            {tab === 'perfil' && <PerfilTab me={me} matches={matches} results={results} myPicks={myPicks} liveScores={liveScores} ranking={liveRanking} champPicks={champPicks} />}
+            {tab === 'perfil' && <PerfilTab me={me} matches={matches} results={results} myPicks={myPicks} liveScores={liveScores} ranking={liveRanking} champPicks={champPicks} onProfileUpdate={handleProfileUpdate} />}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'artilharia' && <ArtilhariaTab />}
@@ -1828,7 +1863,12 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
                   <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
-                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Avatar user={r} size={26} />
+                      <span>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</span>
+                    </div>
+                  </td>
                   <td className="tot">{r.total}{r.liveExtra > 0 && <span className="bl-live-extra">+{r.liveExtra}</span>}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
@@ -1855,9 +1895,55 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
 }
 
 /* ============================ Perfil ============================ */
-function PerfilTab({ me, matches, results, myPicks, liveScores, ranking, champPicks }) {
+function PerfilTab({ me, matches, results, myPicks, liveScores, ranking, champPicks, onProfileUpdate }) {
   const myRank = ranking.findIndex((r) => r.slug === me.slug);
   const myRow = ranking[myRank] || { total: 0, exatos: 0, vencedores: 0 };
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(me.name);
+  const [saving, setSaving] = useState(false);
+  const [editErr, setEditErr] = useState('');
+  const fileRef = useRef(null);
+
+  const cooldownMs = me.name_changed_at ? Math.max(0, new Date(me.name_changed_at).getTime() + 5 * 3600 * 1000 - Date.now()) : 0;
+  const cooldownLeft = cooldownMs > 0
+    ? (() => {
+        const h = Math.floor(cooldownMs / 3600000);
+        const m = Math.ceil((cooldownMs % 3600000) / 60000);
+        return h > 0 ? `${h}h${m}min` : `${m}min`;
+      })()
+    : null;
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setEditErr('Foto muito grande (máx 2 MB)'); return; }
+    setSaving(true); setEditErr('');
+    try {
+      const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+      const path = `${me.slug}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw new Error(upErr.message);
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+      const updated = await supabase.rpc('update_profile', { p_name: me.name, p_pin: me.pin, p_avatar_url: publicUrl });
+      if (updated.error) throw new Error(updated.error.message);
+      onProfileUpdate({ avatar_url: publicUrl });
+    } catch (e) { setEditErr(e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function handleSaveName() {
+    const trimmed = newName.trim();
+    if (trimmed === me.name) { setEditingName(false); return; }
+    if (trimmed.length < 2) { setEditErr('Nome muito curto'); return; }
+    setSaving(true); setEditErr('');
+    try {
+      const updated = await supabase.rpc('update_profile', { p_name: me.name, p_pin: me.pin, p_new_name: trimmed });
+      if (updated.error) throw new Error(updated.error.message);
+      onProfileUpdate({ name: trimmed, name_changed_at: new Date().toISOString() });
+      setEditingName(false);
+    } catch (e) { setEditErr(e.message); }
+    finally { setSaving(false); }
+  }
 
   const history = useMemo(() => {
     return [...matches]
@@ -1878,15 +1964,38 @@ function PerfilTab({ me, matches, results, myPicks, liveScores, ranking, champPi
   return (
     <section aria-label="Perfil">
       <div className="bl-panel" style={{ marginTop: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>{me.name}</h2>
+        {/* Header: avatar + nome */}
+        <div className="bl-perfil-header">
+          <label className="bl-avatar-upload" title="Trocar foto">
+            <input type="file" ref={fileRef} accept="image/*" onChange={handleAvatarChange} disabled={saving} />
+            <Avatar user={me} size={64} />
+            <div className="bl-avatar-overlay">📷</div>
+          </label>
+          <div className="bl-perfil-nameblock">
+            {editingName ? (
+              <div className="bl-name-edit-row">
+                <input value={newName} onChange={(e) => setNewName(e.target.value)}
+                  maxLength={24} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }} />
+                <button className="bl-btn-sm" onClick={handleSaveName} disabled={saving}>Salvar</button>
+                <button className="bl-btn-sm" style={{ background: 'transparent', color: 'var(--cinza)' }} onClick={() => { setEditingName(false); setNewName(me.name); setEditErr(''); }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ margin: 0, fontSize: 20, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me.name}</h2>
+                {!cooldownLeft && (
+                  <button className="bl-btn-sm" style={{ padding: '3px 8px', fontSize: 12 }} onClick={() => { setEditingName(true); setNewName(me.name); setEditErr(''); }} title="Editar nome">✏️</button>
+                )}
+              </div>
+            )}
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cinza)' }}>
               {myRank >= 0 ? `${myRank + 1}º lugar` : '—'} · {myRow.total} pts
             </p>
+            {cooldownLeft && <p className="bl-cooldown-msg">Próxima troca de nome em {cooldownLeft}</p>}
+            {editErr && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#e55' }}>{editErr}</p>}
+            {saving && <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--cinza)' }}>Salvando…</p>}
           </div>
           {myChampion && (
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center', flexShrink: 0 }}>
               <Flag team={myChampion} size={28} />
               <div style={{ fontSize: 10, color: 'var(--cinza)', marginTop: 3 }}>campeão</div>
             </div>
