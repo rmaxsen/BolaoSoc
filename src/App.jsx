@@ -408,6 +408,7 @@ const CSS = `
   .bl-tab{border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
   .bl-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   [data-theme="dark"] .bl-tabs{background:rgba(6,13,26,.96)}
+  .bl-wrap{padding-top:calc(38px + env(safe-area-inset-top) + 8px)}
 }
 .bl-badge{position:absolute;top:2px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--apito);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 
@@ -415,6 +416,7 @@ const CSS = `
 .bl-day{margin:26px 0 12px;display:flex;align-items:center;gap:14px;color:var(--cal)}
 .bl-day::before,.bl-day::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(244,240,228,.35),transparent)}
 .bl-day span{font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:rgba(244,240,228,.65)}
+@media(display-mode:standalone){.bl-day:first-of-type{margin-top:8px}}
 
 /* ── Match card ── */
 .bl-card{background:var(--papel);border:2px solid #20301F;border-radius:18px;margin-bottom:14px;
