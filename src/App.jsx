@@ -684,7 +684,25 @@ const CSS = `
 .bl-mi-tabs button[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 @media(prefers-reduced-motion:no-preference){.bl-mi-live .dot{animation:bl-blink 1s ease-in-out infinite}}
 @keyframes bl-blink{50%{opacity:.25}}
+
+/* ── Goal flash ── */
+.bl-goal-flash{animation:bl-goal-pop .7s ease-out}
+@keyframes bl-goal-pop{0%{transform:scale(1.4);color:var(--canarinho)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+
+/* ── Live banner ── */
+.bl-live-banner{background:rgba(215,38,61,.1);border:1px solid rgba(215,38,61,.3);color:var(--apito);
+  border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.bl-live-extra{font-size:11px;font-weight:900;color:var(--canarinho);margin-left:4px}
+
+/* ── Perfil ── */
+.bl-perfil-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:13px;gap:8px;flex-wrap:wrap}
+.bl-perfil-row:nth-child(odd){background:rgba(32,48,31,.05)}
+.bl-perfil-row .pr-match{font-weight:700;flex:1;min-width:0}
+.bl-perfil-row .pr-pick{color:var(--cinza);font-size:12px;white-space:nowrap}
+.bl-progress{height:8px;background:rgba(32,48,31,.12);border-radius:999px;overflow:hidden;margin:4px 0 0}
+.bl-progress-bar{height:100%;background:var(--bandeira);border-radius:999px;transition:width .6s ease}
 `;
+
 
 /* ============================================================ App ============================================================ */
 function TopBar({ matches, results, liveScores, now }) {
@@ -798,7 +816,23 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const toastRef = useRef(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === '1');
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('soundOn') !== '0');
   const alertedWindows = useRef(new Set());
+
+  const toggleSound = () => setSoundOn((v) => { const n = !v; localStorage.setItem('soundOn', n ? '1' : '0'); return n; });
+
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
+    } catch {}
+  }
 
   const say = useCallback((msg) => {
     setToast(msg);
@@ -814,9 +848,11 @@ export default function App() {
       if (ot <= now && ot > now - 60000 && !alertedWindows.current.has(m.id)) {
         alertedWindows.current.add(m.id);
         say(`🔓 Janela aberta: ${m.home} × ${m.away} — palpite até 15min antes!`);
+        if (soundOn) playBeep();
       }
     }
-  }, [now, matches, say]);
+  }, [now, matches, say, soundOn]);
+
 
   const loadAll = useCallback(async () => {
     const [mq, uq, pq, rq] = await Promise.all([
@@ -962,6 +998,23 @@ export default function App() {
 
   const liveScores = useLiveScores(matches, me, rpc);
 
+  const liveRanking = useMemo(() => {
+    const LIVE_ST = new Set(['1H','2H','HT','ET','P','LIVE','FT']);
+    return ranking.map((row) => {
+      let extra = 0;
+      for (const m of matches) {
+        if (results[m.id]) continue;
+        const ls = liveScores?.[m.id];
+        if (!ls || ls.home == null || !LIVE_ST.has(ls.status)) continue;
+        const pick = picksAll[row.slug]?.[m.id];
+        if (!pick) continue;
+        const p = points(pick, { home: ls.home, away: ls.away });
+        if (p != null) extra += p;
+      }
+      return { ...row, total: row.total + extra, liveExtra: extra };
+    }).sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
+  }, [ranking, matches, results, liveScores, picksAll]);
+
   const pendentes = useMemo(() => {
     if (!me) return 0;
     return matches.filter((m) => {
@@ -970,6 +1023,10 @@ export default function App() {
       return !((d && d.h != null && d.a != null) || (s && s.home != null));
     }).length;
   }, [matches, now, draft, myPicks, me]);
+
+  useEffect(() => {
+    document.title = me && pendentes > 0 ? `(${pendentes}) Bolão Copa 2026 ⚽` : 'Bolão Copa 2026 ⚽';
+  }, [pendentes, me]);
 
   /* ============================ RENDER ============================ */
   if (boot === 'loading') {
@@ -1029,6 +1086,9 @@ export default function App() {
             <button className="bl-dark-btn" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo escuro'}>
               {darkMode ? '☀️ claro' : '🌙 noite'}
             </button>
+            <button className="bl-dark-btn" onClick={toggleSound} title={soundOn ? 'Desligar som' : 'Ligar som'}>
+              {soundOn ? '🔔' : '🔕'}
+            </button>
           </div>
         )}
       </header>
@@ -1042,6 +1102,7 @@ export default function App() {
               <button className="bl-tab" data-on={tab === 'jogos' ? 1 : 0} onClick={() => { setTab('jogos'); loadAll().catch(() => {}); }}>
                 Jogos {pendentes > 0 && <span className="bl-badge">{pendentes}</span>}
               </button>
+              <button className="bl-tab" data-on={tab === 'perfil' ? 1 : 0} onClick={() => setTab('perfil')}>Perfil</button>
               <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); }}>Ranking</button>
               <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => setTab('tabela')}>Tabela</button>
               <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => setTab('artilharia')}>⚽ Art.</button>
@@ -1057,7 +1118,8 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
                 liveScores={liveScores} />
             )}
-            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
+            {tab === 'perfil' && <PerfilTab me={me} matches={matches} results={results} myPicks={myPicks} liveScores={liveScores} ranking={liveRanking} champPicks={champPicks} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'artilharia' && <ArtilhariaTab />}
             {tab === 'admin' && me.isAdmin && (
@@ -1166,6 +1228,11 @@ function ChampionCard({ myChampion, onSave, busy }) {
 function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
+  const firstOpenRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => firstOpenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+    return () => clearTimeout(t);
+  }, []);
   const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
@@ -1238,25 +1305,33 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         </div>
       )}
 
-      {byDay.map(({ day, items }) => {
-        const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
-        if (!visible.length) return null;
-        return (
-          <div key={dayKey(day)}>
-            <div className="bl-day"><span>{fmtDay(day)}</span></div>
-            {visible.map((m) => (
-              <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-                picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-                setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
-            ))}
-          </div>
-        );
-      })}
+      {(() => {
+        let scrollAssigned = false;
+        return byDay.map(({ day, items }) => {
+          const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+          if (!visible.length) return null;
+          return (
+            <div key={dayKey(day)}>
+              <div className="bl-day"><span>{fmtDay(day)}</span></div>
+              {visible.map((m) => {
+                const isOpen = !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status);
+                let ref = null;
+                if (isOpen && !scrollAssigned) { ref = firstOpenRef; scrollAssigned = true; }
+                return (
+                  <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                    picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                    setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} scrollRef={ref} />
+                );
+              })}
+            </div>
+          );
+        });
+      })()}
     </section>
   );
 }
 
-function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore, liveScore }) {
+function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore, liveScore, scrollRef }) {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const locked = isLocked(m, now);
@@ -1270,9 +1345,27 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
-  const isFinished = !!res;
+  const liveFinished = !res && liveScore?.status === 'FT' && liveScore?.home != null;
+  const isFinished = !!res || liveFinished;
+  const manuallyExpanded = useRef(false);
   const [collapsed, setCollapsed] = useState(isFinished);
-  const stamp = res ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
+  useEffect(() => {
+    if (liveFinished && !manuallyExpanded.current) setCollapsed(true);
+  }, [liveFinished]);
+  const collapseScore = res ? { home: res.home, away: res.away } : liveScore ? { home: liveScore.home, away: liveScore.away } : null;
+  const stamp = res ? ['fim', 'ENCERRADO'] : liveFinished ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
+  // Goal flash
+  const prevScore = useRef(null);
+  const [goalFlash, setGoalFlash] = useState(false);
+  useEffect(() => {
+    if (liveScore?.home != null && prevScore.current) {
+      if (liveScore.home > prevScore.current.home || liveScore.away > prevScore.current.away) {
+        setGoalFlash(true);
+        setTimeout(() => setGoalFlash(false), 1200);
+      }
+    }
+    if (liveScore?.home != null) prevScore.current = { home: liveScore.home, away: liveScore.away };
+  }, [liveScore?.home, liveScore?.away]);
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
@@ -1283,14 +1376,15 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
 
   if (isFinished && collapsed) {
     return (
-      <article className="bl-card bl-card-collapsed" onClick={() => setCollapsed(false)} title="Clique para expandir">
+      <article className="bl-card bl-card-collapsed" onClick={() => { manuallyExpanded.current = true; setCollapsed(false); }} title="Clique para expandir">
         <div className="bl-collapsed-inner">
           <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
           <div className="bl-collapsed-teams">
             <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
           </div>
           <div className="bl-collapsed-score">
-            <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
+            <span>{collapseScore?.home}</span><span className="bl-collapsed-x">×</span><span>{collapseScore?.away}</span>
+            {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)', marginLeft: 3 }}>ESPN</span>}
           </div>
           <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
             <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
@@ -1308,7 +1402,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   }
 
   return (
-    <article className="bl-card">
+    <article className="bl-card" ref={scrollRef}>
       <span className={`bl-stamp ${stamp[0]}`}>{stamp[1]}</span>
       <div className="bl-card-inner">
         <div className="bl-meta">
@@ -1339,7 +1433,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         {!res && liveScore && liveScore.status !== 'NS' && liveScore.home != null && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             {isLive && <span className="bl-mi-live" style={{ marginBottom: 6, display: 'inline-flex' }}><span className="dot" />AO VIVO {liveScore.elapsed ? `${liveScore.elapsed}` : ''}</span>}
-            <div style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
+            <div className={goalFlash ? 'bl-goal-flash' : ''} style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
               {liveScore.home} × {liveScore.away}
               {!isLive && liveScore.status === 'FT' && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--cinza)', marginLeft: 8 }}>ESPN</span>}
             </div>
@@ -1679,10 +1773,32 @@ function RankHistoryChart({ rankHistory, ranking }) {
   );
 }
 
-function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
+function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rankHistory }) {
   const encerrados = Object.keys(results || {}).length;
+  const hasLive = (liveRanking || []).some((r) => r.liveExtra > 0);
+  const display = hasLive ? liveRanking : ranking;
+  const [copied, setCopied] = useState(false);
+
+  function copyRanking() {
+    const lines = ['🏆 Bolão Copa 2026 — Ranking', ''];
+    display.forEach((r, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+      lines.push(`${medal} ${r.name} — ${r.total} pts (${r.exatos} ⭐)`);
+    });
+    if (hasLive) lines.push('\n📡 Inclui placar ao vivo (parcial)');
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <section aria-label="Classificação">
+      {hasLive && (
+        <div className="bl-live-banner">
+          <span>🔴</span> Ranking parcial com placar ao vivo
+        </div>
+      )}
       <div className="bl-rank">
         <table>
           <thead>
@@ -1695,14 +1811,14 @@ function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
             </tr>
           </thead>
           <tbody>
-            {ranking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
-            {ranking.map((r, i) => {
+            {display.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
+            {display.map((r, i) => {
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
                   <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
                   <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
-                  <td className="tot">{r.total}</td>
+                  <td className="tot">{r.total}{r.liveExtra > 0 && <span className="bl-live-extra">+{r.liveExtra}</span>}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
                   <td className={`champ-col ${r.champHit ? 'bl-champ-hit' : ''}`}>
@@ -1714,11 +1830,90 @@ function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
           </tbody>
         </table>
       </div>
-      <p style={{ color: 'rgba(244,240,228,.75)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
-        {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado lançado · Acertar o campeão vale +{CHAMPION_PTS} pts{worldChampion ? ` (campeão definido: ${worldChampion})` : ''}.<br />
-        Desempate: mais placares exatos, depois mais vencedores.
-      </p>
-      {rankHistory && <RankHistoryChart rankHistory={rankHistory} ranking={ranking} />}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+        <p style={{ color: 'rgba(244,240,228,.75)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+          {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado · Desempate: ⭐ exatos, depois ✓ resultados.
+        </p>
+        <button className="bl-toggle-btn" onClick={copyRanking} style={{ whiteSpace: 'nowrap' }}>
+          {copied ? '✅ Copiado!' : '📋 Copiar'}
+        </button>
+      </div>
+      {rankHistory && <RankHistoryChart rankHistory={rankHistory} ranking={display} />}
+    </section>
+  );
+}
+
+/* ============================ Perfil ============================ */
+function PerfilTab({ me, matches, results, myPicks, liveScores, ranking, champPicks }) {
+  const myRank = ranking.findIndex((r) => r.slug === me.slug);
+  const myRow = ranking[myRank] || { total: 0, exatos: 0, vencedores: 0 };
+
+  const history = useMemo(() => {
+    return [...matches]
+      .filter((m) => results[m.id])
+      .sort((a, b) => new Date(b.kickoff) - new Date(a.kickoff))
+      .map((m) => {
+        const res = results[m.id];
+        const pick = myPicks[m.id];
+        const pts = pick ? points(pick, res) : null;
+        return { m, res, pick, pts };
+      });
+  }, [matches, results, myPicks]);
+
+  const jogosComRes = history.length;
+  const taxa = jogosComRes > 0 ? Math.round((myRow.exatos + myRow.vencedores) / jogosComRes * 100) : 0;
+  const myChampion = champPicks?.[me.slug];
+
+  return (
+    <section aria-label="Perfil">
+      <div className="bl-panel" style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20 }}>{me.name}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cinza)' }}>
+              {myRank >= 0 ? `${myRank + 1}º lugar` : '—'} · {myRow.total} pts
+            </p>
+          </div>
+          {myChampion && (
+            <div style={{ textAlign: 'center' }}>
+              <Flag team={myChampion} size={28} />
+              <div style={{ fontSize: 10, color: 'var(--cinza)', marginTop: 3 }}>campeão</div>
+            </div>
+          )}
+        </div>
+
+        <div className="bl-stats-row">
+          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.total}</span><span className="bl-stat-lbl">Total pts</span></div>
+          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.exatos}</span><span className="bl-stat-lbl">⭐ Exatos</span></div>
+          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.vencedores}</span><span className="bl-stat-lbl">✓ Resultados</span></div>
+          <div className="bl-stat-box"><span className="bl-stat-val">{history.filter((h) => !h.pick).length}</span><span className="bl-stat-lbl">Sem palpite</span></div>
+        </div>
+
+        {jogosComRes > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--cinza)', marginBottom: 4 }}>
+              <span>Taxa de acerto</span><span><b style={{ color: 'var(--tinta)' }}>{taxa}%</b></span>
+            </div>
+            <div className="bl-progress"><div className="bl-progress-bar" style={{ width: `${taxa}%` }} /></div>
+          </div>
+        )}
+      </div>
+
+      {history.length > 0 && (
+        <div className="bl-panel" style={{ marginTop: 10, padding: '14px 10px' }}>
+          <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, letterSpacing: .5 }}>Histórico de jogos</h3>
+          {history.map(({ m, res, pick, pts }) => (
+            <div key={m.id} className="bl-perfil-row">
+              <div className="pr-match">
+                <Flag team={m.home} size={16} /> {res.home} × {res.away} <Flag team={m.away} size={16} />
+                <span style={{ fontSize: 11, color: 'var(--cinza)', marginLeft: 6 }}>{m.home.slice(0,3)} × {m.away.slice(0,3)}</span>
+              </div>
+              <span className="pr-pick">{pick ? `${pick.home}×${pick.away}` : 'sem palpite'}</span>
+              {pts != null && <span className={`bl-pts p${pts}`} style={{ fontSize: 11, padding: '2px 8px' }}>{pts === 3 ? '⭐+3' : pts === 1 ? '+1' : '0'}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
