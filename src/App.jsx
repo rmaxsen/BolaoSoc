@@ -412,7 +412,7 @@ const CSS = `
 
 /* ── PWA: barra de navegação no rodapé ── */
 @media(display-mode:standalone){
-  .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
+  .bl-tabs,.bl-app[data-tb="1"] .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
   .bl-tabs-in{padding:6px 10px 4px}
   .bl-tab{border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
   .bl-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
