@@ -389,6 +389,18 @@ const CSS = `
 .bl-card:hover{transform:translateY(-3px);box-shadow:0 10px 0 rgba(0,0,0,.32),0 6px 32px rgba(0,0,0,.22)}
 .bl-card:hover::before{opacity:1}
 .bl-card-inner{border:2px dashed rgba(32,48,31,.2);border-radius:12px;margin:7px;padding:12px 12px 14px}
+.bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.75;transition:opacity .18s,transform .18s}
+.bl-card-collapsed:hover{opacity:1;transform:translateY(-1px)}
+.bl-collapsed-inner{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:nowrap;overflow:hidden}
+.bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:36px}
+.bl-collapsed-teams{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+.bl-collapsed-teams .bl-collapsed-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-collapsed-score{display:flex;align-items:center;gap:4px;font-weight:900;font-size:16px;white-space:nowrap;padding:0 4px}
+.bl-collapsed-x{color:var(--cinza);font-weight:400;font-size:13px}
+.bl-collapsed-expand{color:var(--cinza);font-size:14px;margin-left:4px}
+.bl-collapse-btn{position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;
+  font-size:11px;color:var(--cinza);padding:2px 6px;border-radius:8px;opacity:.6}
+.bl-collapse-btn:hover{opacity:1;background:rgba(0,0,0,.06)}
 
 /* ── Card meta ── */
 .bl-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--cinza);font-weight:600;margin-bottom:12px;gap:8px}
@@ -1054,6 +1066,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
+  const isFinished = !!res;
+  const [collapsed, setCollapsed] = useState(isFinished);
   const stamp = res ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
@@ -1063,9 +1077,33 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
     .sort((a, b) => a.name.localeCompare(b.name));
   const quantos = others.filter((o) => o.pick).length;
 
+  if (isFinished && collapsed) {
+    return (
+      <article className="bl-card bl-card-collapsed" onClick={() => setCollapsed(false)} title="Clique para expandir">
+        <div className="bl-collapsed-inner">
+          <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
+          <div className="bl-collapsed-teams">
+            <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
+          </div>
+          <div className="bl-collapsed-score">
+            <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
+          </div>
+          <div className="bl-collapsed-teams">
+            <span className="bl-collapsed-name">{m.away}</span><Flag team={m.away} />
+          </div>
+          {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
+          <span className="bl-collapsed-expand">▸</span>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="bl-card">
       <span className={`bl-stamp ${stamp[0]}`}>{stamp[1]}</span>
+      {isFinished && (
+        <button className="bl-collapse-btn" onClick={() => setCollapsed(true)} title="Recolher">▴ recolher</button>
+      )}
       <div className="bl-card-inner">
         <div className="bl-meta">
           <span className="grupo">{m.phase === 'Grupos' ? `GRUPO ${m.grp}` : m.phase.toUpperCase()}</span>
