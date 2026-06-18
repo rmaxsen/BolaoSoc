@@ -1231,7 +1231,12 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
   const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
   const firstOpenRef = useRef(null);
   useEffect(() => {
-    const t = setTimeout(() => firstOpenRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+    const t = setTimeout(() => {
+      const el = firstOpenRef.current;
+      if (!el) return;
+      const y = el.getBoundingClientRect().top + window.scrollY - 90;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }, 400);
     return () => clearTimeout(t);
   }, []);
   const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
