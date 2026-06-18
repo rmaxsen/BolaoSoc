@@ -374,9 +374,10 @@ const CSS = `
 .bl-topbar{position:fixed;top:0;left:0;right:0;z-index:100;
   padding:env(safe-area-inset-top) 0 0;
   background:rgba(11,42,28,.96);backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none}
+  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none;
+  box-shadow:0 4px 0 rgba(11,42,28,.96)}
 .bl-topbar-in{display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);height:28px}
+  padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);min-height:28px}
 .bl-topbar-live{display:inline-flex;align-items:center;gap:5px;color:var(--apito)}
 .bl-topbar-live .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .bl-topbar-score{font-weight:900;font-size:14px;color:var(--canarinho)}
@@ -402,8 +403,6 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:var(--tb-h,0px)}
-/* Re-run measurement when topbar appears/disappears */
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
@@ -755,7 +754,6 @@ const CSS = `
 
 
 /* ============================================================ App ============================================================ */
-
 function TopBar({ matches, results, liveScores, now }) {
   // 1) Tem jogo ao vivo?
   const live = matches.find((m) => {
@@ -1058,27 +1056,6 @@ export default function App() {
 
   const liveScores = useLiveScores(matches, me, rpc);
 
-  const topBarVisible = useMemo(() => {
-    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
-    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
-    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
-    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
-  }, [matches, results, liveScores, now]);
-
-  useLayoutEffect(() => {
-    const update = () => {
-      const el = document.querySelector('.bl-topbar');
-      const h = el ? Math.round(el.getBoundingClientRect().height) : 0;
-      document.documentElement.style.setProperty('--tb-h', `${h}px`);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    const el = document.querySelector('.bl-topbar');
-    if (el) ro.observe(el);
-    window.addEventListener('resize', update);
-    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
-  }, [topBarVisible]);
-
   const liveRanking = useMemo(() => {
     const LIVE_ST = new Set(['1H','2H','HT','ET','P','LIVE','FT']);
     return ranking.map((row) => {
@@ -1140,7 +1117,7 @@ export default function App() {
   };
 
   return (
-    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
+    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
       <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
       <header className="bl-hero">
