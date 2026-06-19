@@ -74,7 +74,7 @@ const CHAMPION_PTS = 5;
 const CHAMPION_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
 
 const BOOT_PTS = 2;
-const BOOT_DEADLINE = new Date('2026-07-19T23:59:59-03:00').getTime();
+const BOOT_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
 
 /* ---------- Util ---------- */
 const TZ = 'America/Sao_Paulo';
