@@ -61,6 +61,14 @@ function Flag({ team, size = 44 }) {
   );
 }
 
+function Avatar({ user, size = 36 }) {
+  if (!user) return null;
+  const s = { width: size, height: size };
+  if (user.avatar_url) return <img src={user.avatar_url} className="bl-avatar" alt={user.name} style={s} />;
+  const initial = (user.name || '?')[0].toUpperCase();
+  return <div className="bl-avatar-initials" style={{ ...s, fontSize: Math.round(size * 0.42) }}>{initial}</div>;
+}
+
 /* Campeão: palpite extra (5 pts), fecha em 21/06/2026 23:59 Brasília. */
 const CHAMPION_PTS = 5;
 const CHAMPION_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
@@ -534,6 +542,36 @@ const CSS = `
 .bl-rank .rank-bronze{background:rgba(181,101,29,.08)}
 .bl-rank .rank-bronze td:first-child{border-left:3px solid #C07040}
 .bl-rank .rank-bronze .tot{font-size:19px}
+.bl-rank-av{position:relative;display:inline-flex;flex-shrink:0;align-items:center;justify-content:center}
+.bl-rank-av .bl-avatar,.bl-rank-av .bl-avatar-initials{position:relative;z-index:1}
+.bl-rank-av.m1,.bl-rank-av.m2,.bl-rank-av.m3{padding:3px;border-radius:50%}
+.bl-rank-av.m1{background:linear-gradient(135deg,#FFE566 0%,#D4900A 50%,#FFE566 100%);box-shadow:0 0 0 2px #20301F,0 3px 12px rgba(212,144,10,.55)}
+.bl-rank-av.m2{background:linear-gradient(135deg,#F4F4F4 0%,#B2B9C2 50%,#F4F4F4 100%);box-shadow:0 0 0 2px #20301F,0 2px 8px rgba(0,0,0,.3)}
+.bl-rank-av.m3{background:linear-gradient(135deg,#F2C090 0%,#A85020 50%,#F2C090 100%);box-shadow:0 0 0 2px #20301F,0 2px 8px rgba(168,80,32,.4)}
+.bl-rank-av.m1::before,.bl-rank-av.m2::before,.bl-rank-av.m3::before,
+.bl-rank-av.m1::after,.bl-rank-av.m2::after,.bl-rank-av.m3::after{
+  content:'';position:absolute;top:22%;width:7px;height:9px;
+  border-radius:50%;border:3px solid transparent;z-index:0}
+.bl-rank-av.m1::before,.bl-rank-av.m1::after{border-color:#D4900A}
+.bl-rank-av.m2::before,.bl-rank-av.m2::after{border-color:#9BA4AF}
+.bl-rank-av.m3::before,.bl-rank-av.m3::after{border-color:#A85020}
+.bl-rank-av.m1::before,.bl-rank-av.m2::before,.bl-rank-av.m3::before{left:-7px;border-right:none;border-radius:50% 0 0 50%}
+.bl-rank-av.m1::after,.bl-rank-av.m2::after,.bl-rank-av.m3::after{right:-7px;border-left:none;border-radius:0 50% 50% 0}
+.bl-rank-badge{position:absolute;bottom:-5px;right:-4px;z-index:2;
+  width:14px;height:14px;border-radius:50%;font-size:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;border:1.5px solid #20301F}
+.bl-rank-av.m1 .bl-rank-badge{background:#D4900A;color:#fff}
+.bl-rank-av.m2 .bl-rank-badge{background:#9BA4AF;color:#fff}
+.bl-rank-av.m3 .bl-rank-badge{background:#A85020;color:#fff}
+.bl-rank-av.mx .bl-rank-badge{background:var(--campo2);color:var(--cinza)}
+.bl-avatar{border-radius:50%;object-fit:cover;display:block;flex-shrink:0}
+.bl-avatar-initials{border-radius:50%;background:linear-gradient(135deg,var(--bandeira),#1a5c2a);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0;text-transform:uppercase}
+.bl-avatar-upload{position:relative;cursor:pointer;display:inline-block}
+.bl-avatar-upload input[type=file]{display:none}
+.bl-avatar-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;font-size:20px;pointer-events:none}
+.bl-avatar-upload:hover .bl-avatar-overlay,.bl-avatar-upload:active .bl-avatar-overlay{opacity:1}
 .bl-medal{display:inline-flex;width:32px;height:32px;border-radius:50%;align-items:center;justify-content:center;
   font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px;transition:transform .2s}
 .bl-medal:hover{transform:scale(1.15)}
@@ -1865,8 +1903,16 @@ function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
-                  <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
-                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td>
+                    <div className={`bl-rank-av ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>
+                      <Avatar user={r} size={30} />
+                      <span className="bl-rank-badge">{i + 1}</span>
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>
+                    {i === 0 ? <img src="/trophy.png" alt="🏆" style={{ width: 22, height: 22, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : ''}
+                    {r.name}{r.slug === meSlug ? ' (você)' : ''}
+                  </td>
                   <td className="tot">{r.total}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
