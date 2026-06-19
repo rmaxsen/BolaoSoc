@@ -962,7 +962,7 @@ export default function App() {
     try {
       await rpc('set_pedro_vote', { p_name: me.name, p_pin: me.pin, p_vote: vote });
       await loadAll();
-      say(vote ? 'Votou SIM 😅' : 'Votou NÃO 🤐');
+      say(`Votou ${vote} 👕`);
     } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
@@ -981,7 +981,7 @@ export default function App() {
       const bootPlayer = bootPicks[u.slug] || null;
       const bootHit = bootWinner && bootPlayer && bootPlayer.toLowerCase() === bootWinner.toLowerCase();
       if (bootHit) total += BOOT_PTS;
-      const pedroBonus = pedroVotes[u.slug] === true ? 0.5 : 0;
+      const pedroBonus = pedroVotes[u.slug] === 'G' ? 0.5 : 0;
       total += pedroBonus;
       return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit, bootPlayer, bootHit, pedroBonus };
     });
@@ -1173,14 +1173,14 @@ function AuthScreen({ onSubmit, busy, firstUser }) {
 }
 
 /* ============================ Palpite Pedro ============================ */
-const PEDRO_QUESTION = 'A camisa da seleção brasileira ficou apertada no Pedro?';
+const PEDRO_QUESTION = 'Qual tamanho de camisa o Pedro deveria usar?';
 
 function PedroVoteCard({ me, pedroVotes, onVote, busy }) {
   const myVote = me ? pedroVotes[me.slug] : undefined;
   const voted = myVote !== undefined;
-  const simCount = Object.values(pedroVotes).filter(v => v === true).length;
-  const naoCount = Object.values(pedroVotes).filter(v => v === false).length;
-  const total = simCount + naoCount;
+  const counts = { P: 0, M: 0, G: 0 };
+  Object.values(pedroVotes).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+  const total = counts.P + counts.M + counts.G;
 
   return (
     <div className="bl-champ" style={{ marginTop: 10 }}>
@@ -1191,23 +1191,21 @@ function PedroVoteCard({ me, pedroVotes, onVote, busy }) {
       <p className="sub" style={{ fontStyle: 'italic' }}>"{PEDRO_QUESTION}"</p>
       {!voted ? (
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          <button className="bl-btn verde" style={{ flex: 1, padding: '10px', fontSize: 14 }}
-            disabled={busy} onClick={() => onVote(true)}>
-            ✅ Sim
-          </button>
-          <button className="bl-btn" style={{ flex: 1, padding: '10px', fontSize: 14, background: '#6E7A70', color: '#fff' }}
-            disabled={busy} onClick={() => onVote(false)}>
-            ❌ Não
-          </button>
+          {['P', 'M', 'G'].map(sz => (
+            <button key={sz} className="bl-btn" style={{ flex: 1, padding: '10px', fontSize: 16, fontWeight: 800, background: '#6E7A70', color: '#fff' }}
+              disabled={busy} onClick={() => onVote(sz)}>
+              {sz}
+            </button>
+          ))}
         </div>
       ) : (
         <div style={{ marginTop: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
-            Você votou: <span style={{ color: myVote ? 'var(--bandeira)' : 'var(--cinza)' }}>{myVote ? '✅ SIM' : '❌ NÃO'}</span>
+            Você votou: <span style={{ color: 'var(--bandeira)' }}>{myVote}</span>
           </div>
           {total > 0 && (
             <div style={{ fontSize: 12, color: 'var(--cinza)' }}>
-              ✅ {simCount} Sim · ❌ {naoCount} Não · {total} {total === 1 ? 'voto' : 'votos'}
+              P: {counts.P} · M: {counts.M} · G: {counts.G} · {total} {total === 1 ? 'voto' : 'votos'}
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--cinza)', marginTop: 4, fontStyle: 'italic' }}>Voto definitivo — não pode alterar 🔒</div>
