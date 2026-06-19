@@ -1917,7 +1917,7 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
                       <span className="bl-rank-badge">{i + 1}</span>
                     </div>
                   </td>
-                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? <img src="/trophy.png" alt="🏆" style={{ width: 22, height: 22, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
                   <td className="tot">{r.total}{r.liveExtra > 0 && <span className="bl-live-extra">+{r.liveExtra}</span>}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
