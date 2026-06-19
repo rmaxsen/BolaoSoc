@@ -1757,7 +1757,7 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData }) {
         <img src="/boot.png" alt="chuteira de ouro" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         <h3 className="bl-display" style={{ margin: 0 }}>Chuteira de Ouro <span className="bl-champ-badge">+{BOOT_PTS} pts</span></h3>
       </div>
-      <p className="sub">Quem vai ser o artilheiro? Acertar vale <b>{BOOT_PTS} pontos</b>.</p>
+      <p className="sub">Quem vai ser o artilheiro? Acertar vale <b>{BOOT_PTS} pontos</b>. Fecha em <b>21/06 às 23:59</b>.</p>
       {leader && (
         <div style={{ fontSize: 12, color: 'var(--cinza)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <img src="/boot.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
