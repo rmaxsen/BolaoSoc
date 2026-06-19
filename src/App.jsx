@@ -61,17 +61,12 @@ function Flag({ team, size = 44 }) {
   );
 }
 
-function Avatar({ user, size = 36 }) {
-  if (!user) return null;
-  const s = { width: size, height: size };
-  if (user.avatar_url) return <img src={user.avatar_url} className="bl-avatar" alt={user.name} style={s} />;
-  const initial = (user.name || '?')[0].toUpperCase();
-  return <div className="bl-avatar-initials" style={{ ...s, fontSize: Math.round(size * 0.42) }}>{initial}</div>;
-}
-
 /* Campeão: palpite extra (5 pts), fecha em 21/06/2026 23:59 Brasília. */
 const CHAMPION_PTS = 5;
 const CHAMPION_DEADLINE = new Date('2026-06-21T23:59:59-03:00').getTime();
+
+const BOOT_PTS = 2;
+const BOOT_DEADLINE = new Date('2026-07-19T23:59:59-03:00').getTime();
 
 /* ---------- Util ---------- */
 const TZ = 'America/Sao_Paulo';
@@ -299,7 +294,8 @@ async function fetchArtilharia() {
     team: l.team?.displayName || l.team?.name || '—',
     teamAbbr: l.team?.abbreviation || '',
     goals: Number(l.value) || 0,
-    headshot: l.athlete?.headshot?.href || null,
+    assists: Number((l.statistics || []).find((s) => s.name === 'goalAssists')?.value) || 0,
+    appearances: Number((l.statistics || []).find((s) => s.name === 'appearances')?.value) || 0,
   })).filter((p) => p.goals > 0);
 }
 
@@ -374,8 +370,7 @@ const CSS = `
 .bl-topbar{position:fixed;top:0;left:0;right:0;z-index:100;
   padding:env(safe-area-inset-top) 0 0;
   background:rgba(11,42,28,.96);backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none;
-  box-shadow:0 4px 0 rgba(11,42,28,.96)}
+  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none}
 .bl-topbar-in{display:flex;align-items:center;justify-content:center;gap:10px;
   padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);min-height:28px}
 .bl-topbar-live{display:inline-flex;align-items:center;gap:5px;color:var(--apito)}
@@ -403,7 +398,6 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:calc(29px + env(safe-area-inset-top))}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
@@ -412,12 +406,11 @@ const CSS = `
 
 /* ── PWA: barra de navegação no rodapé ── */
 @media(display-mode:standalone){
-  .bl-tabs,.bl-app[data-tb="1"] .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
+  .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
   .bl-tabs-in{padding:6px 10px 4px}
   .bl-tab{border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
   .bl-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
   [data-theme="dark"] .bl-tabs{background:rgba(6,13,26,.96)}
-  .bl-wrap{padding-top:calc(38px + env(safe-area-inset-top) + 8px)}
 }
 .bl-badge{position:absolute;top:2px;right:8px;min-width:18px;height:18px;border-radius:9px;background:var(--apito);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 
@@ -425,7 +418,6 @@ const CSS = `
 .bl-day{margin:26px 0 12px;display:flex;align-items:center;gap:14px;color:var(--cal)}
 .bl-day::before,.bl-day::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(244,240,228,.35),transparent)}
 .bl-day span{font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:rgba(244,240,228,.65)}
-@media(display-mode:standalone){.bl-day:first-of-type{margin-top:8px}}
 
 /* ── Match card ── */
 .bl-card{background:var(--papel);border:2px solid #20301F;border-radius:18px;margin-bottom:14px;
@@ -437,16 +429,15 @@ const CSS = `
 .bl-card:hover{transform:translateY(-3px);box-shadow:0 10px 0 rgba(0,0,0,.32),0 6px 32px rgba(0,0,0,.22)}
 .bl-card:hover::before{opacity:1}
 .bl-card-inner{border:2px dashed rgba(32,48,31,.2);border-radius:12px;margin:7px;padding:12px 12px 14px}
-.bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.78;transition:opacity .18s,transform .18s}
+.bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.75;transition:opacity .18s,transform .18s}
 .bl-card-collapsed:hover{opacity:1;transform:translateY(-1px)}
-.bl-collapsed-inner{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:10px 14px}
-.bl-collapsed-team{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-.bl-collapsed-name{font-size:11px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;color:var(--tinta)}
-.bl-collapsed-center{display:flex;flex-direction:column;align-items:center;gap:4px}
-.bl-collapsed-score{font-weight:900;font-size:18px;white-space:nowrap;letter-spacing:1px}
+.bl-collapsed-inner{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:nowrap;overflow:hidden}
+.bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:36px}
+.bl-collapsed-teams{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+.bl-collapsed-teams .bl-collapsed-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-collapsed-score{display:flex;align-items:center;gap:4px;font-weight:900;font-size:16px;white-space:nowrap;padding:0 4px}
 .bl-collapsed-x{color:var(--cinza);font-weight:400;font-size:13px}
-.bl-collapsed-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:center}
-.bl-collapsed-expand{color:var(--cinza);font-size:12px}
+.bl-collapsed-expand{color:var(--cinza);font-size:14px;margin-left:4px}
 .bl-collapse-btn{position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;
   font-size:11px;color:var(--cinza);padding:2px 6px;border-radius:8px;opacity:.6}
 .bl-collapse-btn:hover{opacity:1;background:rgba(0,0,0,.06)}
@@ -493,8 +484,6 @@ const CSS = `
 .bl-mini:focus-visible{outline:2px solid var(--royal);outline-offset:2px;border-radius:4px}
 .bl-pts{font-weight:900;border-radius:999px;padding:4px 13px;font-size:13px}
 .bl-pts.p3{background:var(--canarinho);color:#241a00} .bl-pts.p1{background:var(--bandeira);color:#fff} .bl-pts.p0{background:#d8d3c4;color:#5c5c52}
-.bl-pts-live{opacity:.75;outline:2px dashed currentColor;outline-offset:2px}
-.bl-pts-projected{opacity:.75;font-style:italic}
 
 /* ── Picks accordion ── */
 .bl-picks{border-top:1px solid rgba(32,48,31,.15);margin:10px 4px 4px;padding:10px 6px 4px;font-size:13px}
@@ -545,47 +534,13 @@ const CSS = `
 .bl-rank .rank-bronze{background:rgba(181,101,29,.08)}
 .bl-rank .rank-bronze td:first-child{border-left:3px solid #C07040}
 .bl-rank .rank-bronze .tot{font-size:19px}
-.bl-rank-av{position:relative;display:inline-flex;flex-shrink:0;align-items:center;justify-content:center}
-.bl-rank-av .bl-avatar,.bl-rank-av .bl-avatar-initials{position:relative;z-index:1}
-/* Trophy frame for top 3 — colored ring + cup handles */
-.bl-rank-av.m1,.bl-rank-av.m2,.bl-rank-av.m3{padding:3px;border-radius:50%}
-.bl-rank-av.m1{background:linear-gradient(135deg,#FFE566 0%,#D4900A 50%,#FFE566 100%);box-shadow:0 0 0 2px #20301F,0 3px 12px rgba(212,144,10,.55)}
-.bl-rank-av.m2{background:linear-gradient(135deg,#F4F4F4 0%,#B2B9C2 50%,#F4F4F4 100%);box-shadow:0 0 0 2px #20301F,0 2px 8px rgba(0,0,0,.3)}
-.bl-rank-av.m3{background:linear-gradient(135deg,#F2C090 0%,#A85020 50%,#F2C090 100%);box-shadow:0 0 0 2px #20301F,0 2px 8px rgba(168,80,32,.4)}
-/* Cup handles — pseudo-elements on side */
-.bl-rank-av.m1::before,.bl-rank-av.m2::before,.bl-rank-av.m3::before,
-.bl-rank-av.m1::after,.bl-rank-av.m2::after,.bl-rank-av.m3::after{
-  content:'';position:absolute;top:22%;width:7px;height:9px;
-  border-radius:50%;border:3px solid transparent;z-index:0}
-.bl-rank-av.m1::before,.bl-rank-av.m1::after{border-color:#D4900A}
-.bl-rank-av.m2::before,.bl-rank-av.m2::after{border-color:#9BA4AF}
-.bl-rank-av.m3::before,.bl-rank-av.m3::after{border-color:#A85020}
-.bl-rank-av.m1::before,.bl-rank-av.m2::before,.bl-rank-av.m3::before{left:-7px;border-right:none;border-radius:50% 0 0 50%}
-.bl-rank-av.m1::after,.bl-rank-av.m2::after,.bl-rank-av.m3::after{right:-7px;border-left:none;border-radius:0 50% 50% 0}
-/* Rank badge */
-.bl-rank-badge{position:absolute;bottom:-5px;right:-4px;z-index:2;
-  width:14px;height:14px;border-radius:50%;font-size:8px;font-weight:900;
-  display:flex;align-items:center;justify-content:center;border:1.5px solid #20301F}
-.bl-rank-av.m1 .bl-rank-badge{background:#D4900A;color:#fff}
-.bl-rank-av.m2 .bl-rank-badge{background:#9BA4AF;color:#fff}
-.bl-rank-av.m3 .bl-rank-badge{background:#A85020;color:#fff}
-.bl-rank-av.mx .bl-rank-badge{background:var(--campo2);color:var(--cinza)}
-.bl-avatar{border-radius:50%;object-fit:cover;display:block;flex-shrink:0}
-.bl-avatar-initials{border-radius:50%;background:linear-gradient(135deg,var(--bandeira),#1a5c2a);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0;text-transform:uppercase}
-.bl-avatar-upload{position:relative;cursor:pointer;display:inline-block}
-.bl-avatar-upload input[type=file]{display:none}
-.bl-avatar-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.55);
-  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;font-size:20px;pointer-events:none}
-.bl-avatar-upload:hover .bl-avatar-overlay,.bl-avatar-upload:active .bl-avatar-overlay{opacity:1}
-.bl-perfil-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}
-.bl-perfil-nameblock{flex:1;min-width:0}
-.bl-perfil-nameblock h2{margin:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bl-name-edit-row{display:flex;gap:8px;align-items:center;margin-top:8px}
-.bl-name-edit-row input{flex:1;background:var(--campo2);border:1.5px solid #20301F;border-radius:8px;
-  color:var(--tinta);padding:7px 10px;font-size:14px;outline:none;min-width:0}
-.bl-name-edit-row input:focus{border-color:var(--bandeira)}
-.bl-cooldown-msg{font-size:11px;color:var(--cinza);margin-top:4px}
+.bl-medal{display:inline-flex;width:32px;height:32px;border-radius:50%;align-items:center;justify-content:center;
+  font-weight:900;font-size:13px;border:2px solid #20301F;margin-right:4px;transition:transform .2s}
+.bl-medal:hover{transform:scale(1.15)}
+.bl-medal.m1{background:linear-gradient(135deg,#FFE566,#D4900A);box-shadow:0 2px 10px rgba(212,144,10,.45)}
+.bl-medal.m2{background:linear-gradient(135deg,#F4F4F4,#B2B9C2);box-shadow:0 2px 8px rgba(0,0,0,.22)}
+.bl-medal.m3{background:linear-gradient(135deg,#F2C090,#A85020);box-shadow:0 2px 8px rgba(168,80,32,.35)}
+.bl-medal.mx{background:#E8E3D3;font-size:12px}
 
 /* ── Panels / forms ── */
 .bl-panel{background:var(--papel);border:2px solid #20301F;border-radius:18px;
@@ -671,8 +626,6 @@ const CSS = `
 /* ── Dark mode toggle ── */
 .bl-dark-btn{border:1.5px solid rgba(255,198,41,.4);background:rgba(0,0,0,.2);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;color:var(--cal);line-height:1;transition:background .2s}
 .bl-dark-btn:hover{background:rgba(255,198,41,.15)}
-.bl-btn-sm{border:1.5px solid #20301F;background:var(--bandeira);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#fff;transition:opacity .15s}
-.bl-btn-sm:disabled{opacity:.5;cursor:not-allowed}
 .bl-toggle-btn{border:1.5px solid rgba(32,48,31,.35);background:transparent;border-radius:8px;padding:6px 14px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--cinza);transition:background .18s,color .18s,border-color .18s}
 .bl-toggle-btn:hover,.bl-toggle-btn[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 
@@ -734,25 +687,7 @@ const CSS = `
 .bl-mi-tabs button[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 @media(prefers-reduced-motion:no-preference){.bl-mi-live .dot{animation:bl-blink 1s ease-in-out infinite}}
 @keyframes bl-blink{50%{opacity:.25}}
-
-/* ── Goal flash ── */
-.bl-goal-flash{animation:bl-goal-pop .7s ease-out}
-@keyframes bl-goal-pop{0%{transform:scale(1.4);color:var(--canarinho)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
-
-/* ── Live banner ── */
-.bl-live-banner{background:rgba(215,38,61,.1);border:1px solid rgba(215,38,61,.3);color:var(--apito);
-  border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.bl-live-extra{font-size:11px;font-weight:900;color:var(--canarinho);margin-left:4px}
-
-/* ── Perfil ── */
-.bl-perfil-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:13px;gap:8px;flex-wrap:wrap}
-.bl-perfil-row:nth-child(odd){background:rgba(32,48,31,.05)}
-.bl-perfil-row .pr-match{font-weight:700;flex:1;min-width:0}
-.bl-perfil-row .pr-pick{color:var(--cinza);font-size:12px;white-space:nowrap}
-.bl-progress{height:8px;background:rgba(32,48,31,.12);border-radius:999px;overflow:hidden;margin:4px 0 0}
-.bl-progress-bar{height:100%;background:var(--bandeira);border-radius:999px;transition:width .6s ease}
 `;
-
 
 /* ============================================================ App ============================================================ */
 function TopBar({ matches, results, liveScores, now }) {
@@ -858,6 +793,9 @@ export default function App() {
   const [results, setResults] = useState({});
   const [champPicks, setChampPicks] = useState({}); // slug -> team
   const [worldChampion, setWorldChampion] = useState(null);
+  const [bootPicks, setBootPicks] = useState({});  // slug -> player_name
+  const [bootWinner, setBootWinner] = useState(null);
+  const [pedroVotes, setPedroVotes] = useState({});  // slug -> vote (boolean)
   const [draft, setDraft] = useState({});
   const [tab, setTab] = useState('jogos');
   const [filtro, setFiltro] = useState('todos');
@@ -866,23 +804,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const toastRef = useRef(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === '1');
-  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('soundOn') !== '0');
   const alertedWindows = useRef(new Set());
-
-  const toggleSound = () => setSoundOn((v) => { const n = !v; localStorage.setItem('soundOn', n ? '1' : '0'); return n; });
-
-  function playBeep() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.start(); osc.stop(ctx.currentTime + 0.4);
-    } catch {}
-  }
 
   const say = useCallback((msg) => {
     setToast(msg);
@@ -898,11 +820,9 @@ export default function App() {
       if (ot <= now && ot > now - 60000 && !alertedWindows.current.has(m.id)) {
         alertedWindows.current.add(m.id);
         say(`🔓 Janela aberta: ${m.home} × ${m.away} — palpite até 15min antes!`);
-        if (soundOn) playBeep();
       }
     }
-  }, [now, matches, say, soundOn]);
-
+  }, [now, matches, say]);
 
   const loadAll = useCallback(async () => {
     const [mq, uq, pq, rq] = await Promise.all([
@@ -921,16 +841,31 @@ export default function App() {
     (rq.data || []).forEach((r) => { rs[r.match_id] = r; });
     setResults(rs);
     // Campeão: tabelas podem ainda não existir (antes de rodar a migração v2) — toleramos erro.
-    const [cq, tq] = await Promise.all([
+    const [cq, bq, pvq, tqFull] = await Promise.all([
       supabase.from('champion_picks').select('*'),
-      supabase.from('tournament').select('champion').eq('id', 1).maybeSingle(),
+      supabase.from('boot_picks').select('*'),
+      supabase.from('pedro_votes').select('*'),
+      supabase.from('tournament').select('champion,boot_winner').eq('id', 1).maybeSingle(),
     ]);
     if (!cq.error) {
       const cp = {};
       (cq.data || []).forEach((c) => { cp[c.user_slug] = c.team; });
       setChampPicks(cp);
     }
-    if (!tq.error) setWorldChampion(tq.data?.champion ?? null);
+    if (!bq.error) {
+      const bp = {};
+      (bq.data || []).forEach((b) => { bp[b.user_slug] = b.player_name; });
+      setBootPicks(bp);
+    }
+    if (!pvq.error) {
+      const pv = {};
+      (pvq.data || []).forEach((v) => { pv[v.user_slug] = v.vote; });
+      setPedroVotes(pv);
+    }
+    if (!tqFull.error) {
+      setWorldChampion(tqFull.data?.champion ?? null);
+      setBootWinner(tqFull.data?.boot_winner ?? null);
+    }
   }, []);
 
   useEffect(() => {
@@ -1011,13 +946,24 @@ export default function App() {
     } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
-  function handleProfileUpdate(changes) {
-    const updated = { ...me, ...changes };
-    setMe(updated);
-    saveSession(updated);
-    setUsers((prev) => prev.map((u) => u.slug === me.slug ? { ...u, ...changes } : u));
-    if (changes.name) say(`Nome atualizado: ${changes.name} ✅`);
-    else say('Foto atualizada ✅');
+  async function saveBootPick(player) {
+    if (!me || !player) return;
+    setBusy(true);
+    try {
+      await rpc('set_boot_pick', { p_name: me.name, p_pin: me.pin, p_player: player });
+      await loadAll();
+      say(`Chuteira de ouro: ${player} 👟`);
+    } catch (e) { say(e.message); } finally { setBusy(false); }
+  }
+
+  async function savePedroVote(vote) {
+    if (!me) return;
+    setBusy(true);
+    try {
+      await rpc('set_pedro_vote', { p_name: me.name, p_pin: me.pin, p_vote: vote });
+      await loadAll();
+      say(vote ? 'Votou SIM 😅 +0,5 pts garantidos!' : 'Votou NÃO 🤐');
+    } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
   /* ---------- ranking ---------- */
@@ -1032,11 +978,16 @@ export default function App() {
       const champTeam = champPicks[u.slug] || null;
       const champHit = worldChampion && champTeam === worldChampion;
       if (champHit) total += CHAMPION_PTS;
-      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit };
+      const bootPlayer = bootPicks[u.slug] || null;
+      const bootHit = bootWinner && bootPlayer && bootPlayer.toLowerCase() === bootWinner.toLowerCase();
+      if (bootHit) total += BOOT_PTS;
+      const pedroBonus = pedroVotes[u.slug] === true ? 0.5 : 0;
+      total += pedroBonus;
+      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit, bootPlayer, bootHit, pedroBonus };
     });
     rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
     return rows;
-  }, [users, matches, results, picksAll, champPicks, worldChampion]);
+  }, [users, matches, results, picksAll, champPicks, worldChampion, bootPicks, bootWinner, pedroVotes]);
 
   const rankHistory = useMemo(() => {
     const sorted = [...matches].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
@@ -1057,30 +1008,6 @@ export default function App() {
 
   const liveScores = useLiveScores(matches, me, rpc);
 
-  const topBarVisible = useMemo(() => {
-    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
-    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
-    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
-    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
-  }, [matches, results, liveScores, now]);
-
-  const liveRanking = useMemo(() => {
-    const LIVE_ST = new Set(['1H','2H','HT','ET','P','LIVE','FT']);
-    return ranking.map((row) => {
-      let extra = 0;
-      for (const m of matches) {
-        if (results[m.id]) continue;
-        const ls = liveScores?.[m.id];
-        if (!ls || ls.home == null || !LIVE_ST.has(ls.status)) continue;
-        const pick = picksAll[row.slug]?.[m.id];
-        if (!pick) continue;
-        const p = points(pick, { home: ls.home, away: ls.away });
-        if (p != null) extra += p;
-      }
-      return { ...row, total: row.total + extra, liveExtra: extra };
-    }).sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
-  }, [ranking, matches, results, liveScores, picksAll]);
-
   const pendentes = useMemo(() => {
     if (!me) return 0;
     return matches.filter((m) => {
@@ -1089,10 +1016,6 @@ export default function App() {
       return !((d && d.h != null && d.a != null) || (s && s.home != null));
     }).length;
   }, [matches, now, draft, myPicks, me]);
-
-  useEffect(() => {
-    document.title = me && pendentes > 0 ? `(${pendentes}) Bolão Copa 2026 ⚽` : 'Bolão Copa 2026 ⚽';
-  }, [pendentes, me]);
 
   /* ============================ RENDER ============================ */
   if (boot === 'loading') {
@@ -1125,7 +1048,7 @@ export default function App() {
   };
 
   return (
-    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
+    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
       <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
       <header className="bl-hero">
@@ -1152,9 +1075,6 @@ export default function App() {
             <button className="bl-dark-btn" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo escuro'}>
               {darkMode ? '☀️ claro' : '🌙 noite'}
             </button>
-            <button className="bl-dark-btn" onClick={toggleSound} title={soundOn ? 'Desligar som' : 'Ligar som'}>
-              {soundOn ? '🔔' : '🔕'}
-            </button>
           </div>
         )}
       </header>
@@ -1168,11 +1088,10 @@ export default function App() {
               <button className="bl-tab" data-on={tab === 'jogos' ? 1 : 0} onClick={() => { setTab('jogos'); loadAll().catch(() => {}); }}>
                 Jogos {pendentes > 0 && <span className="bl-badge">{pendentes}</span>}
               </button>
-              <button className="bl-tab" data-on={tab === 'perfil' ? 1 : 0} onClick={() => { setTab('perfil'); window.scrollTo({ top: 0 }); }}>Perfil</button>
-              <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); window.scrollTo({ top: 0 }); loadAll().catch(() => {}); }}>Ranking</button>
-              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => { setTab('tabela'); window.scrollTo({ top: 0 }); }}>Tabela</button>
-              <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => { setTab('artilharia'); window.scrollTo({ top: 0 }); }}>⚽ Art.</button>
-              {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); window.scrollTo({ top: 0 }); loadAll().catch(() => {}); }}>Admin</button>}
+              <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); }}>Ranking</button>
+              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => setTab('tabela')}>Tabela</button>
+              <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => setTab('artilharia')}>⚽ Art.</button>
+              {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); }}>Admin</button>}
             </div>
           </nav>
 
@@ -1182,12 +1101,11 @@ export default function App() {
                 picksAll={picksAll} myPicks={myPicks} draft={draft} results={results}
                 filtro={filtro} setFiltro={setFiltro} setDraftScore={setDraftScore}
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
-                liveScores={liveScores} />
+                liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
-            {tab === 'perfil' && <PerfilTab me={me} matches={matches} results={results} myPicks={myPicks} liveScores={liveScores} ranking={liveRanking} champPicks={champPicks} onProfileUpdate={handleProfileUpdate} />}
-            {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
-            {tab === 'artilharia' && <ArtilhariaTab />}
+            {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
                 worldChampion={worldChampion}
@@ -1254,6 +1172,52 @@ function AuthScreen({ onSubmit, busy, firstUser }) {
   );
 }
 
+/* ============================ Palpite Pedro ============================ */
+const PEDRO_QUESTION = 'A camisa da seleção brasileira ficou apertada no Pedro?';
+
+function PedroVoteCard({ me, pedroVotes, onVote, busy }) {
+  const myVote = me ? pedroVotes[me.slug] : undefined;
+  const voted = myVote !== undefined;
+  const simCount = Object.values(pedroVotes).filter(v => v === true).length;
+  const naoCount = Object.values(pedroVotes).filter(v => v === false).length;
+  const total = simCount + naoCount;
+
+  return (
+    <div className="bl-champ" style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 22 }}>🇧🇷</span>
+        <h3 className="bl-display" style={{ margin: 0, fontSize: 15 }}>Palpite especial <span className="bl-champ-badge">+0,5 pts</span></h3>
+      </div>
+      <p className="sub" style={{ fontStyle: 'italic' }}>"{PEDRO_QUESTION}"</p>
+      {!voted ? (
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <button className="bl-btn verde" style={{ flex: 1, padding: '10px', fontSize: 14 }}
+            disabled={busy} onClick={() => onVote(true)}>
+            ✅ Sim (+0,5 pts)
+          </button>
+          <button className="bl-btn" style={{ flex: 1, padding: '10px', fontSize: 14, background: '#6E7A70', color: '#fff' }}
+            disabled={busy} onClick={() => onVote(false)}>
+            ❌ Não
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+            Você votou: <span style={{ color: myVote ? 'var(--bandeira)' : 'var(--cinza)' }}>{myVote ? '✅ SIM' : '❌ NÃO'}</span>
+            {myVote && <span style={{ color: 'var(--canarinho)', marginLeft: 8 }}>+0,5 pts</span>}
+          </div>
+          {total > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--cinza)' }}>
+              ✅ {simCount} Sim · ❌ {naoCount} Não · {total} {total === 1 ? 'voto' : 'votos'}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: 'var(--cinza)', marginTop: 4, fontStyle: 'italic' }}>Voto definitivo — não pode alterar 🔒</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================ Campeão ============================ */
 function ChampionCard({ myChampion, onSave, busy }) {
   const [sel, setSel] = useState(myChampion || '');
@@ -1291,19 +1255,9 @@ function ChampionCard({ myChampion, onSave, busy }) {
 }
 
 /* ============================ Jogos ============================ */
-function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores }) {
+function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores, pedroVotes, onPedroVote }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
-  const firstOpenRef = useRef(null);
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const el = firstOpenRef.current;
-      if (!el) return;
-      const y = el.getBoundingClientRect().top + window.scrollY - 100;
-      window.scrollTo({ top: y, behavior: 'smooth' });
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
   const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
@@ -1345,6 +1299,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
   return (
     <section aria-label="Jogos">
       <ChampionCard myChampion={myChampion} onSave={onSaveChampion} busy={busy} />
+      <PedroVoteCard me={me} pedroVotes={pedroVotes} onVote={onPedroVote} busy={busy} />
       {statsData && (
         <div className="bl-stats-row">
           <div className="bl-stat-box"><div className="sv">{statsData.totalPts}</div><div className="sl">Total de pontos</div></div>
@@ -1376,31 +1331,25 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         </div>
       )}
 
-      {(() => {
-        let scrollAssigned = false;
-        return byDay.map(({ day, items }) => {
-          const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
-          if (!visible.length) return null;
-          const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
-          let dayRef = null;
-          if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
-          return (
-            <div key={dayKey(day)} ref={dayRef}>
-              <div className="bl-day"><span>{fmtDay(day)}</span></div>
-              {visible.map((m) => (
-                <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-                  picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-                  setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} scrollRef={null} />
-              ))}
-            </div>
-          );
-        });
-      })()}
+      {byDay.map(({ day, items }) => {
+        const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+        if (!visible.length) return null;
+        return (
+          <div key={dayKey(day)}>
+            <div className="bl-day"><span>{fmtDay(day)}</span></div>
+            {visible.map((m) => (
+              <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
+            ))}
+          </div>
+        );
+      })}
     </section>
   );
 }
 
-function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore, liveScore, scrollRef }) {
+function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftScore, liveScore }) {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const locked = isLocked(m, now);
@@ -1414,29 +1363,9 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
-  const liveResult = isLive && liveScore?.home != null ? { home: liveScore.home, away: liveScore.away } : null;
-  const livePts = !res && liveResult && saved ? points(saved, liveResult) : null;
-  const liveFinished = !res && liveScore?.status === 'FT' && liveScore?.home != null;
-  const isFinished = !!res || liveFinished;
-  const manuallyExpanded = useRef(false);
+  const isFinished = !!res;
   const [collapsed, setCollapsed] = useState(isFinished);
-  useEffect(() => {
-    if (liveFinished && !manuallyExpanded.current) setCollapsed(true);
-  }, [liveFinished]);
-  const collapseScore = res ? { home: res.home, away: res.away } : liveScore ? { home: liveScore.home, away: liveScore.away } : null;
-  const stamp = res ? ['fim', 'ENCERRADO'] : liveFinished ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
-  // Goal flash
-  const prevScore = useRef(null);
-  const [goalFlash, setGoalFlash] = useState(false);
-  useEffect(() => {
-    if (liveScore?.home != null && prevScore.current) {
-      if (liveScore.home > prevScore.current.home || liveScore.away > prevScore.current.away) {
-        setGoalFlash(true);
-        setTimeout(() => setGoalFlash(false), 1200);
-      }
-    }
-    if (liveScore?.home != null) prevScore.current = { home: liveScore.home, away: liveScore.away };
-  }, [liveScore?.home, liveScore?.away]);
+  const stamp = res ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
@@ -1447,38 +1376,32 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
 
   if (isFinished && collapsed) {
     return (
-      <article className="bl-card bl-card-collapsed" onClick={() => { manuallyExpanded.current = true; setCollapsed(false); }} title="Clique para expandir">
+      <article className="bl-card bl-card-collapsed" onClick={() => setCollapsed(false)} title="Clique para expandir">
         <div className="bl-collapsed-inner">
-          <div className="bl-collapsed-team">
-            <Flag team={m.home} size={32} />
-            <span className="bl-collapsed-name">{m.home}</span>
+          <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
+          <div className="bl-collapsed-teams">
+            <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
           </div>
-          <div className="bl-collapsed-center">
-            <div className="bl-collapsed-score">
-              <span>{collapseScore?.home}</span>
-              <span className="bl-collapsed-x"> × </span>
-              <span>{collapseScore?.away}</span>
-            </div>
-            <div className="bl-collapsed-meta">
-              {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)' }}>ESPN</span>}
-              {pts != null && <span className={`bl-pts p${pts}`} style={{ fontSize: 10, padding: '1px 7px' }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
-              {saved
-                ? <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
-                : <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>}
-              <span className="bl-collapsed-expand">▸</span>
-            </div>
+          <div className="bl-collapsed-score">
+            <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
           </div>
-          <div className="bl-collapsed-team">
-            <Flag team={m.away} size={32} />
-            <span className="bl-collapsed-name">{m.away}</span>
+          <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
+            <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
           </div>
+          {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
+          {saved ? (
+            <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
+          ) : (
+            <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>
+          )}
+          <span className="bl-collapsed-expand">▸</span>
         </div>
       </article>
     );
   }
 
   return (
-    <article className="bl-card" ref={scrollRef}>
+    <article className="bl-card">
       <span className={`bl-stamp ${stamp[0]}`}>{stamp[1]}</span>
       <div className="bl-card-inner">
         <div className="bl-meta">
@@ -1509,7 +1432,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         {!res && liveScore && liveScore.status !== 'NS' && liveScore.home != null && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             {isLive && <span className="bl-mi-live" style={{ marginBottom: 6, display: 'inline-flex' }}><span className="dot" />AO VIVO {liveScore.elapsed ? `${liveScore.elapsed}` : ''}</span>}
-            <div className={goalFlash ? 'bl-goal-flash' : ''} style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
+            <div style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
               {liveScore.home} × {liveScore.away}
               {!isLive && liveScore.status === 'FT' && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--cinza)', marginLeft: 8 }}>ESPN</span>}
             </div>
@@ -1520,15 +1443,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <span>
             {beforeWindow && cdAbre && <>⏳ Abre em <b>{cdAbre}</b></>}
             {inWindow && cdFecha && <>🔓 Fecha em <b>{cdFecha}</b></>}
-            {locked && !res && !liveResult && <>🔒 Palpites encerrados</>}
+            {locked && !res && <>🔒 Palpites encerrados</>}
             {res && saved && pts != null && (
               <span className={`bl-pts p${pts}`}>{pts === 3 ? '⭐ +3 pts' : pts === 1 ? '+1 pt' : '0 pt'}</span>
             )}
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
-            {!res && liveResult && saved && livePts != null && (
-              <span className={`bl-pts p${livePts} bl-pts-live`}>{livePts === 3 ? '⭐ +3 pts' : livePts === 1 ? '+1 pt' : '0 pt'}</span>
-            )}
-            {!res && liveResult && !saved && <span className="bl-pts p0 bl-pts-live">sem palpite</span>}
           </span>
           <span style={{ display: 'flex', gap: 12 }}>
             {isFinished && (
@@ -1549,19 +1468,13 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
       {open && (
         <div className="bl-picks">
           {others.map(({ slug, name, pick }) => {
-            const effectiveRes = res || liveResult;
-            const p = effectiveRes && pick ? points(pick, effectiveRes) : null;
-            const isProjected = !res && !!liveResult;
+            const p = res && pick ? points(pick, res) : null;
             return (
               <div className={`row ${slug === me?.slug ? 'me' : ''}`} key={slug}>
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
                   {pick ? `${pick.home} × ${pick.away}` : 'ainda não palpitou'}
-                  {p != null && (
-                    <b className={isProjected ? 'bl-pts-projected' : ''} style={{ marginLeft: 8 }}>
-                      {p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}
-                    </b>
-                  )}
+                  {p != null && <b style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
                 </span>
               </div>
             );
@@ -1764,8 +1677,82 @@ function TabelaTab() {
   );
 }
 
+/* ============================ Chuteira de Ouro ============================ */
+function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData }) {
+  const [query, setQuery] = useState(myPick || '');
+  const [showSug, setShowSug] = useState(false);
+  const open = Date.now() < BOOT_DEADLINE;
+
+  const suggestions = useMemo(() => {
+    if (!query || query.length < 2 || !artilhariaData) return [];
+    const q = query.toLowerCase();
+    return artilhariaData.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [query, artilhariaData]);
+
+  const leader = artilhariaData?.[0];
+
+  return (
+    <div className="bl-champ" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <img src="/boot.png" alt="chuteira de ouro" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+        <h3 className="bl-display" style={{ margin: 0 }}>Chuteira de Ouro <span className="bl-champ-badge">+{BOOT_PTS} pts</span></h3>
+      </div>
+      <p className="sub">Quem vai ser o artilheiro? Acertar vale <b>{BOOT_PTS} pontos</b>.</p>
+      {leader && (
+        <div style={{ fontSize: 12, color: 'var(--cinza)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <img src="/boot.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+          Líder atual: <b style={{ color: 'var(--tinta)' }}>{leader.name}</b> ({leader.goals} gols)
+        </div>
+      )}
+      {bootWinner && (
+        <div style={{ fontSize: 12, background: 'rgba(255,198,41,.15)', borderRadius: 8, padding: '6px 10px', marginBottom: 8 }}>
+          🏅 Oficial: <b>{bootWinner}</b>
+        </div>
+      )}
+      {open ? (
+        <div style={{ position: 'relative' }}>
+          <div className="cur">
+            <input
+              value={query}
+              onChange={e => { setQuery(e.target.value); setShowSug(true); }}
+              onFocus={() => setShowSug(true)}
+              onBlur={() => setTimeout(() => setShowSug(false), 200)}
+              placeholder="Buscar jogador…"
+              style={{ flex: 1, background: 'var(--campo2)', border: '1.5px solid #20301F', borderRadius: 8, color: 'var(--tinta)', padding: '7px 10px', fontSize: 14, outline: 'none' }}
+            />
+            <button className="bl-btn amarelo" style={{ flex: 'none', padding: '8px 16px', fontSize: 13 }}
+              disabled={busy || !query.trim() || query.trim() === myPick}
+              onClick={() => { onSave(query.trim()); setShowSug(false); }}>
+              {query.trim() === myPick ? 'Salvo' : 'Salvar'}
+            </button>
+          </div>
+          {showSug && suggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 60, background: 'var(--papel)', border: '1.5px solid #20301F', borderRadius: 8, zIndex: 50, boxShadow: '0 4px 12px rgba(0,0,0,.3)' }}>
+              {suggestions.map((p, i) => (
+                <div key={i} onMouseDown={() => { setQuery(p.name); setShowSug(false); }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: i < suggestions.length-1 ? '1px solid rgba(32,48,31,.15)' : 'none' }}>
+                  <b>{p.name}</b> <span style={{ color: 'var(--cinza)', fontSize: 11 }}>{p.goals} gols · {p.team}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {myPick && (
+            <div style={{ fontSize: 12, color: 'var(--cinza)', marginTop: 6 }}>
+              Seu palpite atual: <b style={{ color: 'var(--tinta)' }}>{myPick}</b>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="lock">🔒 Palpite de chuteira encerrado.{' '}
+          {myPick ? <>Você escolheu <b style={{ color: 'var(--canarinho)' }}>{myPick}</b>.</> : 'Você não chegou a palpitar.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================ Artilharia ============================ */
-function ArtilhariaTab() {
+function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy }) {
   const [state, setState] = useState({ loading: true });
   const load = useCallback(() => {
     setState({ loading: true });
@@ -1777,6 +1764,7 @@ function ArtilhariaTab() {
 
   return (
     <section aria-label="Artilharia">
+      {me && <BootPickCard myPick={myBootPick} bootWinner={bootWinner} onSave={onSaveBootPick} busy={busy} artilhariaData={state.data || []} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
         <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>⚽ Artilharia</h2>
         <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
@@ -1791,45 +1779,36 @@ function ArtilhariaTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)', width: 32 }}>#</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>#</th>
                 <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>Jogador</th>
-                <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)', width: 40 }}>⚽</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>⚽</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>🅰</th>
+                <th style={{ textAlign: 'center', padding: '8px 8px', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--cinza)' }}>J</th>
               </tr>
             </thead>
             <tbody>
-              {state.data.map((p, i) => {
-                const ptTeam = Object.keys(TEAM_EN).find((k) =>
-                  TEAM_EN[k]?.some((v) => v.toLowerCase() === p.team.toLowerCase()) || k.toLowerCase() === p.team.toLowerCase()
-                ) || '';
-                return (
-                  <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)' }}>{i + 1}</td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {p.headshot
-                          ? <img src={p.headshot} alt={p.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: 'var(--campo2)' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                          : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--campo2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👤</div>
-                        }
-                        <div>
-                          <div style={{ fontWeight: 700 }}>{p.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                            <Flag team={ptTeam} size={16} />
-                            <span>{ptTeam || p.team}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 900, fontSize: 22 }}>{p.goals}</td>
-                  </tr>
-                );
-              })}
+              {state.data.map((p, i) => (
+                <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)', width: 32 }}>{i + 1}</td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ fontWeight: 700 }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Flag team={Object.keys(TEAM_EN).find((k) => TEAM_EN[k]?.some((v) => v.toLowerCase() === p.team.toLowerCase()) || k.toLowerCase() === p.team.toLowerCase()) || ''} size={14} />
+                      {p.team}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 900, fontSize: 18 }}>{p.goals}</td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.assists || '—'}</td>
+                  <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.appearances}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
 
       <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12 }}>
-        Dados via ESPN
+        Dados via ESPN · ⚽ gols · 🅰 assistências · J jogos
       </p>
     </section>
   );
@@ -1868,32 +1847,10 @@ function RankHistoryChart({ rankHistory, ranking }) {
   );
 }
 
-function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rankHistory }) {
+function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
   const encerrados = Object.keys(results || {}).length;
-  const hasLive = (liveRanking || []).some((r) => r.liveExtra > 0);
-  const display = hasLive ? liveRanking : ranking;
-  const [copied, setCopied] = useState(false);
-
-  function copyRanking() {
-    const lines = ['🏆 Bolão Copa 2026 — Ranking', ''];
-    display.forEach((r, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      lines.push(`${medal} ${r.name} — ${r.total} pts (${r.exatos} ⭐)`);
-    });
-    if (hasLive) lines.push('\n📡 Inclui placar ao vivo (parcial)');
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
   return (
     <section aria-label="Classificação">
-      {hasLive && (
-        <div className="bl-live-banner">
-          <span>🔴</span> Ranking parcial com placar ao vivo
-        </div>
-      )}
       <div className="bl-rank">
         <table>
           <thead>
@@ -1906,19 +1863,14 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
             </tr>
           </thead>
           <tbody>
-            {display.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
-            {display.map((r, i) => {
+            {ranking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
+            {ranking.map((r, i) => {
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
-                  <td>
-                    <div className={`bl-rank-av ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>
-                      <Avatar user={r} size={30} />
-                      <span className="bl-rank-badge">{i + 1}</span>
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? <img src="/trophy.png" alt="🏆" style={{ width: 22, height: 22, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
-                  <td className="tot">{r.total}{r.liveExtra > 0 && <span className="bl-live-extra">+{r.liveExtra}</span>}</td>
+                  <td><span className={`bl-medal ${i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : 'mx'}`}>{i + 1}</span></td>
+                  <td style={{ fontWeight: r.slug === meSlug ? 900 : 600 }}>{i === 0 ? '👑 ' : ''}{r.name}{r.slug === meSlug ? ' (você)' : ''}</td>
+                  <td className="tot">{r.total}</td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
                   <td className={`champ-col ${r.champHit ? 'bl-champ-hit' : ''}`}>
@@ -1930,159 +1882,11 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-        <p style={{ color: 'rgba(244,240,228,.75)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-          {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado · Desempate: ⭐ exatos, depois ✓ resultados.
-        </p>
-        <button className="bl-toggle-btn" onClick={copyRanking} style={{ whiteSpace: 'nowrap' }}>
-          {copied ? '✅ Copiado!' : '📋 Copiar'}
-        </button>
-      </div>
-      {rankHistory && <RankHistoryChart rankHistory={rankHistory} ranking={display} />}
-    </section>
-  );
-}
-
-/* ============================ Perfil ============================ */
-function PerfilTab({ me, matches, results, myPicks, liveScores, ranking, champPicks, onProfileUpdate }) {
-  const myRank = ranking.findIndex((r) => r.slug === me.slug);
-  const myRow = ranking[myRank] || { total: 0, exatos: 0, vencedores: 0 };
-  const [editingName, setEditingName] = useState(false);
-  const [newName, setNewName] = useState(me.name);
-  const [saving, setSaving] = useState(false);
-  const [editErr, setEditErr] = useState('');
-  const fileRef = useRef(null);
-
-  const cooldownMs = me.name_changed_at ? Math.max(0, new Date(me.name_changed_at).getTime() + 5 * 3600 * 1000 - Date.now()) : 0;
-  const cooldownLeft = cooldownMs > 0
-    ? (() => {
-        const h = Math.floor(cooldownMs / 3600000);
-        const m = Math.ceil((cooldownMs % 3600000) / 60000);
-        return h > 0 ? `${h}h${m}min` : `${m}min`;
-      })()
-    : null;
-
-  async function handleAvatarChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { setEditErr('Foto muito grande (máx 2 MB)'); return; }
-    setSaving(true); setEditErr('');
-    try {
-      const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
-      const path = `${me.slug}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw new Error(upErr.message);
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-      const updated = await supabase.rpc('update_profile', { p_name: me.name, p_pin: me.pin, p_avatar_url: publicUrl });
-      if (updated.error) throw new Error(updated.error.message);
-      onProfileUpdate({ avatar_url: publicUrl });
-    } catch (e) { setEditErr(e.message); }
-    finally { setSaving(false); }
-  }
-
-  async function handleSaveName() {
-    const trimmed = newName.trim();
-    if (trimmed === me.name) { setEditingName(false); return; }
-    if (trimmed.length < 2) { setEditErr('Nome muito curto'); return; }
-    setSaving(true); setEditErr('');
-    try {
-      const updated = await supabase.rpc('update_profile', { p_name: me.name, p_pin: me.pin, p_new_name: trimmed });
-      if (updated.error) throw new Error(updated.error.message);
-      onProfileUpdate({ name: trimmed, name_changed_at: new Date().toISOString() });
-      setEditingName(false);
-    } catch (e) { setEditErr(e.message); }
-    finally { setSaving(false); }
-  }
-
-  const history = useMemo(() => {
-    return [...matches]
-      .filter((m) => results[m.id])
-      .sort((a, b) => new Date(b.kickoff) - new Date(a.kickoff))
-      .map((m) => {
-        const res = results[m.id];
-        const pick = myPicks[m.id];
-        const pts = pick ? points(pick, res) : null;
-        return { m, res, pick, pts };
-      });
-  }, [matches, results, myPicks]);
-
-  const jogosComRes = history.length;
-  const taxa = jogosComRes > 0 ? Math.round((myRow.exatos + myRow.vencedores) / jogosComRes * 100) : 0;
-  const myChampion = champPicks?.[me.slug];
-
-  return (
-    <section aria-label="Perfil">
-      <div className="bl-panel" style={{ marginTop: 14 }}>
-        {/* Header: avatar + nome */}
-        <div className="bl-perfil-header">
-          <label className="bl-avatar-upload" title="Trocar foto">
-            <input type="file" ref={fileRef} accept="image/*" onChange={handleAvatarChange} disabled={saving} />
-            <Avatar user={me} size={64} />
-            <div className="bl-avatar-overlay">📷</div>
-          </label>
-          <div className="bl-perfil-nameblock">
-            {editingName ? (
-              <div className="bl-name-edit-row">
-                <input value={newName} onChange={(e) => setNewName(e.target.value)}
-                  maxLength={24} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }} />
-                <button className="bl-btn-sm" onClick={handleSaveName} disabled={saving}>Salvar</button>
-                <button className="bl-btn-sm" style={{ background: 'transparent', color: 'var(--cinza)' }} onClick={() => { setEditingName(false); setNewName(me.name); setEditErr(''); }}>✕</button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 20, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me.name}</h2>
-                {!cooldownLeft && (
-                  <button className="bl-btn-sm" style={{ padding: '3px 8px', fontSize: 12 }} onClick={() => { setEditingName(true); setNewName(me.name); setEditErr(''); }} title="Editar nome">✏️</button>
-                )}
-              </div>
-            )}
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--cinza)' }}>
-              {myRank >= 0 ? `${myRank + 1}º lugar` : '—'} · {myRow.total} pts
-            </p>
-            {cooldownLeft && <p className="bl-cooldown-msg">Próxima troca de nome em {cooldownLeft}</p>}
-            {editErr && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#e55' }}>{editErr}</p>}
-            {saving && <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--cinza)' }}>Salvando…</p>}
-          </div>
-          {myChampion && (
-            <div style={{ textAlign: 'center', flexShrink: 0 }}>
-              <Flag team={myChampion} size={28} />
-              <div style={{ fontSize: 10, color: 'var(--cinza)', marginTop: 3 }}>campeão</div>
-            </div>
-          )}
-        </div>
-
-        <div className="bl-stats-row">
-          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.total}</span><span className="bl-stat-lbl">Total pts</span></div>
-          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.exatos}</span><span className="bl-stat-lbl">⭐ Exatos</span></div>
-          <div className="bl-stat-box"><span className="bl-stat-val">{myRow.vencedores}</span><span className="bl-stat-lbl">✓ Resultados</span></div>
-          <div className="bl-stat-box"><span className="bl-stat-val">{history.filter((h) => !h.pick).length}</span><span className="bl-stat-lbl">Sem palpite</span></div>
-        </div>
-
-        {jogosComRes > 0 && (
-          <div style={{ marginTop: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--cinza)', marginBottom: 4 }}>
-              <span>Taxa de acerto</span><span><b style={{ color: 'var(--tinta)' }}>{taxa}%</b></span>
-            </div>
-            <div className="bl-progress"><div className="bl-progress-bar" style={{ width: `${taxa}%` }} /></div>
-          </div>
-        )}
-      </div>
-
-      {history.length > 0 && (
-        <div className="bl-panel" style={{ marginTop: 10, padding: '14px 10px' }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, letterSpacing: .5 }}>Histórico de jogos</h3>
-          {history.map(({ m, res, pick, pts }) => (
-            <div key={m.id} className="bl-perfil-row">
-              <div className="pr-match">
-                <Flag team={m.home} size={16} /> {res.home} × {res.away} <Flag team={m.away} size={16} />
-                <span style={{ fontSize: 11, color: 'var(--cinza)', marginLeft: 6 }}>{m.home.slice(0,3)} × {m.away.slice(0,3)}</span>
-              </div>
-              <span className="pr-pick">{pick ? `${pick.home}×${pick.away}` : 'sem palpite'}</span>
-              {pts != null && <span className={`bl-pts p${pts}`} style={{ fontSize: 11, padding: '2px 8px' }}>{pts === 3 ? '⭐+3' : pts === 1 ? '+1' : '0'}</span>}
-            </div>
-          ))}
-        </div>
-      )}
+      <p style={{ color: 'rgba(244,240,228,.75)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
+        {encerrados} jogo{encerrados === 1 ? '' : 's'} com resultado lançado · Acertar o campeão vale +{CHAMPION_PTS} pts{worldChampion ? ` (campeão definido: ${worldChampion})` : ''}.<br />
+        Desempate: mais placares exatos, depois mais vencedores.
+      </p>
+      {rankHistory && <RankHistoryChart rankHistory={rankHistory} ranking={ranking} />}
     </section>
   );
 }
@@ -2146,6 +1950,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
 
   // campeão oficial
   const [champ, setChamp] = useState(worldChampion || '');
+  const [bootWinnerInput, setBootWinnerInput] = useState('');
 
   const setV = (mid, side, v) => setVals((x) => ({ ...x, [mid]: { ...(x[mid] || {}), [side]: v.replace(/\D/g, '').slice(0, 2) } }));
 
@@ -2295,6 +2100,18 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
           onClick={() => run(() => rpc('set_world_champion', { p_name: me.name, p_pin: me.pin, p_team: champ || null }),
             champ ? `Campeão definido: ${champ} 🏆` : 'Campeão limpo')}>
           Salvar campeão oficial
+        </button>
+      </div>
+
+      <div className="bl-panel">
+        <h2 className="bl-display">Chuteira de Ouro oficial</h2>
+        <p className="sub">Defina aqui o artilheiro quando a Copa acabar. Quem tiver palpitado esse jogador ganha <b>+{BOOT_PTS} pts</b> no ranking. Deixe em branco e salve para limpar.</p>
+        <div className="bl-field"><label htmlFor="ad-boot">Nome do artilheiro</label>
+          <input id="ad-boot" className="bl-in" value={bootWinnerInput} onChange={(e) => setBootWinnerInput(e.target.value)} placeholder="ex: Kylian Mbappé" /></div>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !bootWinnerInput.trim()}
+          onClick={() => run(() => rpc('set_boot_winner', { p_name: me.name, p_pin: me.pin, p_player: bootWinnerInput.trim() || null }),
+            bootWinnerInput.trim() ? `Chuteira de Ouro: ${bootWinnerInput.trim()} 👟` : 'Chuteira de Ouro limpa')}>
+          Salvar artilheiro oficial
         </button>
       </div>
 
