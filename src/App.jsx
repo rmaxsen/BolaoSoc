@@ -1152,7 +1152,7 @@ export default function App() {
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
-            {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} />}
+            {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
                 worldChampion={worldChampion}
@@ -1738,7 +1738,7 @@ function TabelaTab() {
 }
 
 /* ============================ Chuteira de Ouro ============================ */
-function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData }) {
+function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPicks, users }) {
   const [query, setQuery] = useState(myPick || '');
   const [showSug, setShowSug] = useState(false);
   const open = Date.now() < BOOT_DEADLINE;
@@ -1807,12 +1807,25 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData }) {
           {myPick ? <>Você escolheu <b style={{ color: 'var(--canarinho)' }}>{myPick}</b>.</> : 'Você não chegou a palpitar.'}
         </div>
       )}
+      {users && users.some(u => bootPicks[u.slug]) && (
+        <div style={{ marginTop: 12, borderTop: '1px solid rgba(32,48,31,.15)', paddingTop: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--cinza)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Palpites da galera</div>
+          {users.filter(u => bootPicks[u.slug]).sort((a, b) => a.name.localeCompare(b.name)).map(u => (
+            <div key={u.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid rgba(32,48,31,.07)' }}>
+              <span style={{ color: 'var(--cinza)' }}>{u.name}</span>
+              <b style={{ color: bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase() ? 'var(--canarinho)' : 'var(--tinta)' }}>
+                {bootPicks[u.slug]}{bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase() ? ' ✓' : ''}
+              </b>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ============================ Artilharia ============================ */
-function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy }) {
+function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootPicks, users }) {
   const [state, setState] = useState({ loading: true });
   const load = useCallback(() => {
     setState({ loading: true });
@@ -1824,7 +1837,7 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy }) {
 
   return (
     <section aria-label="Artilharia">
-      {me && <BootPickCard myPick={myBootPick} bootWinner={bootWinner} onSave={onSaveBootPick} busy={busy} artilhariaData={state.data || []} />}
+      {me && <BootPickCard myPick={myBootPick} bootWinner={bootWinner} onSave={onSaveBootPick} busy={busy} artilhariaData={state.data || []} bootPicks={bootPicks} users={users} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
         <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>⚽ Artilharia</h2>
         <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
