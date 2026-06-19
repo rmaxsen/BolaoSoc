@@ -1006,13 +1006,6 @@ export default function App() {
     } catch (e) { console.error('pedro vote error:', e); say(e.message || 'Erro ao votar'); } finally { setBusy(false); }
   }
 
-  const topBarVisible = useMemo(() => {
-    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
-    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
-    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
-    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
-  }, [matches, results, liveScores, now]);
-
   /* ---------- ranking ---------- */
   const ranking = useMemo(() => {
     const rows = users.map((u) => {
@@ -1093,6 +1086,13 @@ export default function App() {
       return next;
     });
   };
+
+  const topBarVisible = (() => {
+    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
+    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
+    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
+    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
+  })();
 
   return (
     <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
@@ -1388,22 +1388,22 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
       {(() => {
         let scrollAssigned = false;
         return byDay.map(({ day, items }) => {
-        const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
-        if (!visible.length) return null;
-        const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
-        let dayRef = null;
-        if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
-        return (
-          <div key={dayKey(day)} ref={dayRef}>
-            <div className="bl-day"><span>{fmtDay(day)}</span></div>
-            {visible.map((m) => (
-              <MatchCard key={m.id} m={m} me={me} users={users} now={now}
-                picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
-                setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
-            ))}
-          </div>
-        );
-      });
+          const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+          if (!visible.length) return null;
+          const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
+          let dayRef = null;
+          if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
+          return (
+            <div key={dayKey(day)} ref={dayRef}>
+              <div className="bl-day"><span>{fmtDay(day)}</span></div>
+              {visible.map((m) => (
+                <MatchCard key={m.id} m={m} me={me} users={users} now={now}
+                  picksAll={picksAll} myPicks={myPicks} draft={draft} res={results[m.id]}
+                  setDraftScore={setDraftScore} liveScore={liveScores?.[m.id]} />
+              ))}
+            </div>
+          );
+        });
       })()}
     </section>
   );
