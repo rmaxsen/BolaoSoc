@@ -378,8 +378,7 @@ const CSS = `
 .bl-topbar{position:fixed;top:0;left:0;right:0;z-index:100;
   padding:env(safe-area-inset-top) 0 0;
   background:rgba(11,42,28,.96);backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none;
-  box-shadow:0 4px 0 rgba(11,42,28,.96)}
+  border-bottom:1px solid rgba(255,198,41,.2);pointer-events:none}
 .bl-topbar-in{display:flex;align-items:center;justify-content:center;gap:10px;
   padding:5px 16px 5px;font-size:12px;font-weight:700;color:var(--cal);min-height:28px}
 .bl-topbar-live{display:inline-flex;align-items:center;gap:5px;color:var(--apito)}
@@ -407,7 +406,6 @@ const CSS = `
 
 /* ── Tabs ── */
 .bl-tabs{position:sticky;top:0;z-index:40;background:rgba(11,42,28,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,198,41,.3)}
-.bl-app[data-tb="1"] .bl-tabs{top:calc(29px + env(safe-area-inset-top))}
 .bl-tabs-in{max-width:680px;margin:0 auto;display:flex;gap:4px;padding:8px 10px}
 .bl-tab{flex:1;border:0;border-radius:10px;padding:10px 4px;font:inherit;font-weight:800;font-size:13px;color:rgba(244,240,228,.6);background:transparent;cursor:pointer;position:relative;transition:background .2s,color .2s}
 .bl-tab:hover{background:rgba(255,255,255,.07);color:rgba(244,240,228,.9)}
@@ -416,7 +414,7 @@ const CSS = `
 
 /* ── PWA: barra de navegação no rodapé ── */
 @media(display-mode:standalone){
-  .bl-tabs,.bl-app[data-tb="1"] .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
+  .bl-tabs{position:fixed;top:auto;bottom:0;left:0;right:0;border-bottom:none;border-top:1px solid rgba(255,198,41,.3);padding-bottom:env(safe-area-inset-bottom)}
   .bl-tabs-in{padding:6px 10px 4px}
   .bl-tab{border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
   .bl-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
@@ -1006,13 +1004,6 @@ export default function App() {
     } catch (e) { console.error('pedro vote error:', e); say(e.message || 'Erro ao votar'); } finally { setBusy(false); }
   }
 
-  const topBarVisible = useMemo(() => {
-    if (matches.some((m) => { const s = liveScores?.[m.id]; return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status); })) return true;
-    if (matches.some((m) => !results[m.id] && isOpenWindow(m, now))) return true;
-    const soon = matches.filter((m) => !results[m.id]).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
-    return !!(soon && new Date(soon.kickoff).getTime() - now < 3 * 3600000);
-  }, [matches, results, liveScores, now]);
-
   /* ---------- ranking ---------- */
   const ranking = useMemo(() => {
     const rows = users.map((u) => {
@@ -1095,7 +1086,7 @@ export default function App() {
   };
 
   return (
-    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined} data-tb={topBarVisible ? '1' : '0'}>
+    <div className="bl-app" data-theme={darkMode ? 'dark' : undefined}>
       <style>{CSS}</style>
       <TopBar matches={matches} results={results} liveScores={liveScores} now={now} />
       <header className="bl-hero">
@@ -1302,16 +1293,6 @@ function ChampionCard({ myChampion, onSave, busy }) {
 function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, filtro, setFiltro, setDraftScore, myChampion, onSaveChampion, busy, liveScores, pedroVotes, onPedroVote }) {
   const grupos = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const [hideFinished, setHideFinished] = useState(() => localStorage.getItem('hideFinished') === '1');
-  const firstOpenRef = useRef(null);
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const el = firstOpenRef.current;
-      if (!el) return;
-      const y = el.getBoundingClientRect().top + window.scrollY - 100;
-      window.scrollTo({ top: y, behavior: 'smooth' });
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
   const toggleHideFinished = (v) => { setHideFinished(v); localStorage.setItem('hideFinished', v ? '1' : '0'); };
   const filtered = matches.filter((m) => {
     if (filtro === 'todos') return true;
@@ -1385,16 +1366,11 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
         </div>
       )}
 
-      {(() => {
-        let scrollAssigned = false;
-        return byDay.map(({ day, items }) => {
+      {byDay.map(({ day, items }) => {
         const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
         if (!visible.length) return null;
-        const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
-        let dayRef = null;
-        if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
         return (
-          <div key={dayKey(day)} ref={dayRef}>
+          <div key={dayKey(day)}>
             <div className="bl-day"><span>{fmtDay(day)}</span></div>
             {visible.map((m) => (
               <MatchCard key={m.id} m={m} me={me} users={users} now={now}
@@ -1403,8 +1379,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
             ))}
           </div>
         );
-      });
-      })()}
+      })}
     </section>
   );
 }
