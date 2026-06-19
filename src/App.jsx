@@ -962,7 +962,7 @@ export default function App() {
     try {
       await rpc('set_pedro_vote', { p_name: me.name, p_pin: me.pin, p_vote: vote });
       await loadAll();
-      say(vote ? 'Votou SIM 😅 +0,5 pts garantidos!' : 'Votou NÃO 🤐');
+      say(vote ? 'Votou SIM 😅' : 'Votou NÃO 🤐');
     } catch (e) { say(e.message); } finally { setBusy(false); }
   }
 
@@ -1186,14 +1186,14 @@ function PedroVoteCard({ me, pedroVotes, onVote, busy }) {
     <div className="bl-champ" style={{ marginTop: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 22 }}>🇧🇷</span>
-        <h3 className="bl-display" style={{ margin: 0, fontSize: 15 }}>Palpite especial <span className="bl-champ-badge">+0,5 pts</span></h3>
+        <h3 className="bl-display" style={{ margin: 0, fontSize: 15 }}>Palpite especial</h3>
       </div>
       <p className="sub" style={{ fontStyle: 'italic' }}>"{PEDRO_QUESTION}"</p>
       {!voted ? (
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button className="bl-btn verde" style={{ flex: 1, padding: '10px', fontSize: 14 }}
             disabled={busy} onClick={() => onVote(true)}>
-            ✅ Sim (+0,5 pts)
+            ✅ Sim
           </button>
           <button className="bl-btn" style={{ flex: 1, padding: '10px', fontSize: 14, background: '#6E7A70', color: '#fff' }}
             disabled={busy} onClick={() => onVote(false)}>
@@ -1204,7 +1204,6 @@ function PedroVoteCard({ me, pedroVotes, onVote, busy }) {
         <div style={{ marginTop: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
             Você votou: <span style={{ color: myVote ? 'var(--bandeira)' : 'var(--cinza)' }}>{myVote ? '✅ SIM' : '❌ NÃO'}</span>
-            {myVote && <span style={{ color: 'var(--canarinho)', marginLeft: 8 }}>+0,5 pts</span>}
           </div>
           {total > 0 && (
             <div style={{ fontSize: 12, color: 'var(--cinza)' }}>
