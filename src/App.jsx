@@ -1001,7 +1001,7 @@ export default function App() {
       await rpc('set_pedro_vote', { p_name: me.name, p_pin: me.pin, p_vote: vote });
       await loadAll();
       say(`Votou ${vote} 👕`);
-    } catch (e) { say(e.message); } finally { setBusy(false); }
+    } catch (e) { console.error('pedro vote error:', e); say(e.message || 'Erro ao votar'); } finally { setBusy(false); }
   }
 
   /* ---------- ranking ---------- */
