@@ -495,10 +495,6 @@ const CSS = `
 .bl-mini:focus-visible{outline:2px solid var(--royal);outline-offset:2px;border-radius:4px}
 .bl-pts{font-weight:900;border-radius:999px;padding:4px 13px;font-size:13px}
 .bl-pts.p3{background:var(--canarinho);color:#241a00} .bl-pts.p1{background:var(--bandeira);color:#fff} .bl-pts.p0{background:#d8d3c4;color:#5c5c52}
-.bl-pts-live{opacity:.75;outline:2px dashed currentColor;outline-offset:2px}
-.bl-pts-projected{opacity:.75;font-style:italic}
-@keyframes bl-goal-flash{0%,100%{background:transparent}50%{background:rgba(255,198,41,.35)}}
-.bl-goal-flash{animation:bl-goal-flash .6s ease-in-out 2}
 
 /* ── Picks accordion ── */
 .bl-picks{border-top:1px solid rgba(32,48,31,.15);margin:10px 4px 4px;padding:10px 6px 4px;font-size:13px}
@@ -1034,22 +1030,6 @@ export default function App() {
     return rows;
   }, [users, matches, results, picksAll, champPicks, worldChampion, bootPicks, bootWinner, pedroVotes]);
 
-  const liveRanking = useMemo(() => {
-    const LIVE_ST = new Set(['1H','2H','HT','ET','P','LIVE','FT']);
-    return ranking.map((row) => {
-      let extra = 0;
-      for (const m of matches) {
-        if (results[m.id]) continue;
-        const ls = liveScores?.[m.id];
-        if (!ls || ls.home == null || !LIVE_ST.has(ls.status)) continue;
-        const pick = picksAll[row.slug]?.[m.id];
-        if (!pick) continue;
-        extra += points(pick, { home: ls.home, away: ls.away }) ?? 0;
-      }
-      return { ...row, total: row.total + extra, liveExtra: extra };
-    }).sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
-  }, [ranking, matches, results, liveScores, picksAll]);
-
   const rankHistory = useMemo(() => {
     const sorted = [...matches].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
     const cumulative = {};
@@ -1171,7 +1151,7 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
-            {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
             {tab === 'admin' && me.isAdmin && (
@@ -1444,28 +1424,9 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const valA = d ? d.a : saved?.away ?? null;
   const pts = res && saved ? points(saved, res) : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
-  const liveResult = isLive && liveScore?.home != null ? { home: liveScore.home, away: liveScore.away } : null;
-  const livePts = !res && liveResult && saved ? points(saved, liveResult) : null;
-  const liveFinished = !res && liveScore?.status === 'FT' && liveScore?.home != null;
-  const isFinished = !!res || liveFinished;
-  const manuallyExpanded = useRef(false);
+  const isFinished = !!res;
   const [collapsed, setCollapsed] = useState(isFinished);
-  const prevScore = useRef(null);
-  const [goalFlash, setGoalFlash] = useState(false);
-  useEffect(() => {
-    if (liveFinished && !manuallyExpanded.current) setCollapsed(true);
-  }, [liveFinished]);
-  useEffect(() => {
-    if (liveScore?.home != null && prevScore.current) {
-      if (liveScore.home > prevScore.current.home || liveScore.away > prevScore.current.away) {
-        setGoalFlash(true);
-        setTimeout(() => setGoalFlash(false), 1200);
-      }
-    }
-    if (liveScore?.home != null) prevScore.current = { home: liveScore.home, away: liveScore.away };
-  }, [liveScore?.home, liveScore?.away]);
-  const collapseScore = res ? { home: res.home, away: res.away } : liveScore ? { home: liveScore.home, away: liveScore.away } : null;
-  const stamp = res ? ['fim', 'ENCERRADO'] : liveFinished ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
+  const stamp = res ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
@@ -1476,19 +1437,18 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
 
   if (isFinished && collapsed) {
     return (
-      <article className="bl-card bl-card-collapsed" onClick={() => { manuallyExpanded.current = true; setCollapsed(false); }} title="Clique para expandir">
+      <article className="bl-card bl-card-collapsed" onClick={() => setCollapsed(false)} title="Clique para expandir">
         <div className="bl-collapsed-inner">
           <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
           <div className="bl-collapsed-teams">
             <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
           </div>
           <div className="bl-collapsed-score">
-            <span>{collapseScore?.home}</span><span className="bl-collapsed-x">×</span><span>{collapseScore?.away}</span>
+            <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
           </div>
           <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
             <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
           </div>
-          {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)', marginRight: 4 }}>ESPN</span>}
           {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
           {saved ? (
             <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
@@ -1533,7 +1493,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         {!res && liveScore && liveScore.status !== 'NS' && liveScore.home != null && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             {isLive && <span className="bl-mi-live" style={{ marginBottom: 6, display: 'inline-flex' }}><span className="dot" />AO VIVO {liveScore.elapsed ? `${liveScore.elapsed}` : ''}</span>}
-            <div className={goalFlash ? 'bl-goal-flash' : ''} style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
+            <div style={{ fontWeight: 900, fontSize: 22, color: isLive ? 'var(--apito)' : 'var(--tinta)' }}>
               {liveScore.home} × {liveScore.away}
               {!isLive && liveScore.status === 'FT' && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--cinza)', marginLeft: 8 }}>ESPN</span>}
             </div>
@@ -1544,15 +1504,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <span>
             {beforeWindow && cdAbre && <>⏳ Abre em <b>{cdAbre}</b></>}
             {inWindow && cdFecha && <>🔓 Fecha em <b>{cdFecha}</b></>}
-            {locked && !res && !liveResult && <>🔒 Palpites encerrados</>}
+            {locked && !res && <>🔒 Palpites encerrados</>}
             {res && saved && pts != null && (
               <span className={`bl-pts p${pts}`}>{pts === 3 ? '⭐ +3 pts' : pts === 1 ? '+1 pt' : '0 pt'}</span>
             )}
             {res && !saved && <span className="bl-pts p0">sem palpite</span>}
-            {!res && liveResult && saved && livePts != null && (
-              <span className={`bl-pts p${livePts} bl-pts-live`}>{livePts === 3 ? '⭐ +3 pts' : livePts === 1 ? '+1 pt' : '0 pt'}</span>
-            )}
-            {!res && liveResult && !saved && <span className="bl-pts p0 bl-pts-live">sem palpite</span>}
           </span>
           <span style={{ display: 'flex', gap: 12 }}>
             {isFinished && (
@@ -1573,15 +1529,13 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
       {open && (
         <div className="bl-picks">
           {others.map(({ slug, name, pick }) => {
-            const effectiveRes = res || liveResult;
-            const p = effectiveRes && pick ? points(pick, effectiveRes) : null;
-            const isProjected = !res && !!liveResult;
+            const p = res && pick ? points(pick, res) : null;
             return (
               <div className={`row ${slug === me?.slug ? 'me' : ''}`} key={slug}>
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
                   {pick ? `${pick.home} × ${pick.away}` : 'ainda não palpitou'}
-                  {p != null && <b className={isProjected ? 'bl-pts-projected' : ''} style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
+                  {p != null && <b style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
                 </span>
               </div>
             );
@@ -1967,10 +1921,8 @@ function RankHistoryChart({ rankHistory, ranking }) {
   );
 }
 
-function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rankHistory }) {
+function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
   const encerrados = Object.keys(results || {}).length;
-  const hasLive = (liveRanking || []).some((r) => r.liveExtra > 0);
-  const display = hasLive ? liveRanking : ranking;
   return (
     <section aria-label="Classificação">
       <div className="bl-rank">
@@ -1985,9 +1937,8 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
             </tr>
           </thead>
           <tbody>
-            {display.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
-            {hasLive && <tr><td colSpan={6} style={{ textAlign: 'center', fontSize: 11, color: 'var(--apito)', padding: '4px 0' }}>🔴 Ranking ao vivo</td></tr>}
-            {display.map((r, i) => {
+            {ranking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
+            {ranking.map((r, i) => {
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
