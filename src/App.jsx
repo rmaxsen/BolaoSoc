@@ -1450,13 +1450,11 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const isFinished = !!res || liveFinished;
   const manuallyExpanded = useRef(false);
   const [collapsed, setCollapsed] = useState(isFinished);
+  const prevScore = useRef(null);
+  const [goalFlash, setGoalFlash] = useState(false);
   useEffect(() => {
     if (liveFinished && !manuallyExpanded.current) setCollapsed(true);
   }, [liveFinished]);
-  const collapseScore = res ? { home: res.home, away: res.away } : liveScore ? { home: liveScore.home, away: liveScore.away } : null;
-  const stamp = res ? ['fim', 'ENCERRADO'] : liveFinished ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
-  const prevScore = useRef(null);
-  const [goalFlash, setGoalFlash] = useState(false);
   useEffect(() => {
     if (liveScore?.home != null && prevScore.current) {
       if (liveScore.home > prevScore.current.home || liveScore.away > prevScore.current.away) {
@@ -1466,6 +1464,8 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
     }
     if (liveScore?.home != null) prevScore.current = { home: liveScore.home, away: liveScore.away };
   }, [liveScore?.home, liveScore?.away]);
+  const collapseScore = res ? { home: res.home, away: res.away } : liveScore ? { home: liveScore.home, away: liveScore.away } : null;
+  const stamp = res ? ['fim', 'ENCERRADO'] : liveFinished ? ['fim', 'ENCERRADO'] : isLive ? ['aberto', '🔴 AO VIVO'] : locked ? ['fechado', 'FECHADO'] : beforeWindow ? ['breve', 'EM BREVE'] : ['aberto', 'ABERTO'];
   const hCls = d && d.h != null ? ' draft' : valH != null ? ' has-value' : '';
   const aCls = d && d.a != null ? ' draft' : valA != null ? ' has-value' : '';
 
@@ -1478,29 +1478,24 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
     return (
       <article className="bl-card bl-card-collapsed" onClick={() => { manuallyExpanded.current = true; setCollapsed(false); }} title="Clique para expandir">
         <div className="bl-collapsed-inner">
-          <div className="bl-collapsed-team">
-            <Flag team={m.home} size={32} />
-            <span className="bl-collapsed-name">{m.home}</span>
+          <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
+          <div className="bl-collapsed-teams">
+            <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
           </div>
-          <div className="bl-collapsed-center">
-            <div className="bl-collapsed-score">
-              <span>{collapseScore?.home}</span>
-              <span className="bl-collapsed-x"> × </span>
-              <span>{collapseScore?.away}</span>
-            </div>
-            <div className="bl-collapsed-meta">
-              {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)' }}>ESPN</span>}
-              {pts != null && <span className={`bl-pts p${pts}`} style={{ fontSize: 10, padding: '1px 7px' }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
-              {saved
-                ? <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
-                : <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>}
-              <span className="bl-collapsed-expand">▸</span>
-            </div>
+          <div className="bl-collapsed-score">
+            <span>{collapseScore?.home}</span><span className="bl-collapsed-x">×</span><span>{collapseScore?.away}</span>
           </div>
-          <div className="bl-collapsed-team">
-            <Flag team={m.away} size={32} />
-            <span className="bl-collapsed-name">{m.away}</span>
+          <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
+            <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
           </div>
+          {liveFinished && <span style={{ fontSize: 9, color: 'var(--cinza)', marginRight: 4 }}>ESPN</span>}
+          {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
+          {saved ? (
+            <span className="bl-collapsed-pick">{saved.home}×{saved.away}</span>
+          ) : (
+            <span className="bl-collapsed-pick" style={{ opacity: .5 }}>sem palpite</span>
+          )}
+          <span className="bl-collapsed-expand">▸</span>
         </div>
       </article>
     );
@@ -1586,11 +1581,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
                   {pick ? `${pick.home} × ${pick.away}` : 'ainda não palpitou'}
-                  {p != null && (
-                    <b className={isProjected ? 'bl-pts-projected' : ''} style={{ marginLeft: 8 }}>
-                      {p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}
-                    </b>
-                  )}
+                  {p != null && <b className={isProjected ? 'bl-pts-projected' : ''} style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
                 </span>
               </div>
             );
