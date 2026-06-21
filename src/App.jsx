@@ -96,10 +96,20 @@ function fmtCountdown(ms) {
   return `${Math.floor(h / 24)} dias`;
 }
 
-function points(pick, res) {
+function points(pick, res, isKO = false) {
   if (!pick || !res) return null;
-  if (pick.home === res.home && pick.away === res.away) return 3;
-  return Math.sign(pick.home - pick.away) === Math.sign(res.home - res.away) ? 1 : 0;
+  const scoreAxis = (() => {
+    if (pick.home === res.home && pick.away === res.away) return 3;
+    return Math.sign(pick.home - pick.away) === Math.sign(res.home - res.away) ? 1 : 0;
+  })();
+  if (!isKO) return scoreAxis;
+  // KO: infer pick qualifier from non-draw pick, or use explicit pick.qualifier
+  const pickQ = pick.qualifier || (pick.home !== pick.away
+    ? (pick.home > pick.away ? 'home' : 'away')
+    : null);
+  const resQ = res.qualifier || null;
+  const qualAxis = (pickQ && resQ && pickQ === resQ) ? 2 : 0;
+  return scoreAxis + qualAxis;
 }
 
 const loadSession = () => {
@@ -952,24 +962,49 @@ export default function App() {
   /* ---------- palpites ---------- */
   const myPicks = (me && picksAll[me.slug]) || {};
   const setDraftScore = (mid, side, val) => {
+    if (side === 'qualifier') {
+      setDraft((d) => {
+        const cur = d[mid] || { h: myPicks[mid]?.home ?? null, a: myPicks[mid]?.away ?? null };
+        return { ...d, [mid]: { ...cur, qualifier: val } };
+      });
+      return;
+    }
     const n = val === '' ? null : Math.max(0, Math.min(99, parseInt(val, 10)));
     setDraft((d) => {
       const cur = d[mid] || { h: myPicks[mid]?.home ?? null, a: myPicks[mid]?.away ?? null };
-      return { ...d, [mid]: { ...cur, [side]: Number.isNaN(n) ? null : n } };
+      const updated = { ...cur, [side]: Number.isNaN(n) ? null : n };
+      // If score changes to non-draw, clear qualifier (it's inferred)
+      if (side === 'h' || side === 'a') {
+        const newH = side === 'h' ? (Number.isNaN(n) ? null : n) : cur.h;
+        const newA = side === 'a' ? (Number.isNaN(n) ? null : n) : cur.a;
+        if (newH != null && newA != null && newH !== newA) updated.qualifier = null;
+      }
+      return { ...d, [mid]: updated };
     });
   };
 
   const pendingDraft = useMemo(() => Object.entries(draft).filter(([mid, p]) => {
     const m = matches.find((x) => x.id === mid);
     if (!m || !isOpenWindow(m, now)) return false;
-    return p.h != null && p.a != null && (myPicks[mid]?.home !== p.h || myPicks[mid]?.away !== p.a);
+    if (p.h == null || p.a == null) return false;
+    // KO draw requires qualifier selection
+    const isKO = m.phase !== 'Grupos';
+    if (isKO && p.h === p.a && !p.qualifier) return false;
+    return myPicks[mid]?.home !== p.h || myPicks[mid]?.away !== p.a || myPicks[mid]?.qualifier !== (p.qualifier || null);
   }), [draft, matches, now, myPicks]);
 
   async function savePicks() {
     if (!me || pendingDraft.length === 0) return;
     setBusy(true);
     try {
-      const payload = pendingDraft.map(([id, p]) => ({ id, h: p.h, a: p.a }));
+      const payload = pendingDraft.map(([id, p]) => {
+        const m = matches.find((x) => x.id === id);
+        const isKO = m?.phase !== 'Grupos';
+        const qualifier = isKO
+          ? (p.qualifier || (p.h > p.a ? 'home' : p.h < p.a ? 'away' : null))
+          : null;
+        return { id, h: p.h, a: p.a, qualifier };
+      });
       const n = await rpc('save_picks', { p_name: me.name, p_pin: me.pin, p_picks: payload });
       setDraft({});
       await loadAll();
@@ -1013,7 +1048,7 @@ export default function App() {
       let total = 0, exatos = 0, vencedores = 0;
       for (const m of matches) {
         const res = results[m.id]; if (!res) continue;
-        const p = points(picksAll[u.slug]?.[m.id], res); if (p == null) continue;
+        const p = points(picksAll[u.slug]?.[m.id], res, m.phase !== 'Grupos'); if (p == null) continue;
         total += p; if (p === 3) exatos++; if (p === 1) vencedores++;
       }
       const champTeam = champPicks[u.slug] || null;
@@ -1039,7 +1074,7 @@ export default function App() {
       const res = results[m.id];
       if (!res) continue;
       for (const u of users) {
-        const p = points(picksAll[u.slug]?.[m.id], res);
+        const p = points(picksAll[u.slug]?.[m.id], res, m.phase !== 'Grupos');
         if (p != null) cumulative[u.slug] = (cumulative[u.slug] || 0) + p;
       }
       history.push({ matchLabel: `${m.home.slice(0,3)}×${m.away.slice(0,3)}`, scores: { ...cumulative } });
@@ -1342,7 +1377,7 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
       const res = results[m.id];
       const pick = myPicks[m.id];
       if (!pick) { semPalpite++; continue; }
-      const p = points(pick, res);
+      const p = points(pick, res, m.phase !== 'Grupos');
       if (p == null) { semPalpite++; continue; }
       totalPts += p;
       if (p === 3) exatos++;
@@ -1422,7 +1457,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
   const saved = myPicks[m.id];
   const valH = d ? d.h : saved?.home ?? null;
   const valA = d ? d.a : saved?.away ?? null;
-  const pts = res && saved ? points(saved, res) : null;
+  const pts = res && saved ? points(saved, res, m.phase !== 'Grupos') : null;
   const isLive = ['1H', '2H', 'HT', 'ET', 'LIVE'].includes(liveScore?.status);
   const isFinished = !!res;
   const [collapsed, setCollapsed] = useState(isFinished);
@@ -1484,9 +1519,41 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <div className="bl-team"><span className="fl"><Flag team={m.away} /></span><span className="nm">{m.away}</span></div>
         </div>
 
+        {m.phase !== 'Grupos' && (() => {
+          const draftH = d ? d.h : valH;
+          const draftA = d ? d.a : valA;
+          const isDraw = draftH != null && draftA != null && draftH === draftA;
+          const curQ = d?.qualifier ?? myPicks[m.id]?.qualifier ?? null;
+          if (!isDraw) return null;
+          return (
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--cinza)', alignSelf: 'center' }}>Quem avança?</span>
+              <button
+                className={`bl-btn${curQ === 'home' ? ' verde' : ''}`}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+                disabled={!inWindow}
+                onClick={() => setDraftScore(m.id, 'qualifier', 'home')}>
+                {m.home}
+              </button>
+              <button
+                className={`bl-btn${curQ === 'away' ? ' verde' : ''}`}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+                disabled={!inWindow}
+                onClick={() => setDraftScore(m.id, 'qualifier', 'away')}>
+                {m.away}
+              </button>
+            </div>
+          );
+        })()}
+
         {res && (
           <div style={{ textAlign: 'center', marginTop: 8 }}>
             <span className="bl-final">{res.home} <small>placar<br />final</small> {res.away}</span>
+            {m.phase !== 'Grupos' && res.qualifier && (
+              <div style={{ fontSize: 11, color: 'var(--cinza)', marginTop: 4 }}>
+                avança: <b style={{ color: 'var(--canarinho)' }}>{res.qualifier === 'home' ? m.home : m.away}</b>
+              </div>
+            )}
           </div>
         )}
 
@@ -1529,12 +1596,12 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
       {open && (
         <div className="bl-picks">
           {others.map(({ slug, name, pick }) => {
-            const p = res && pick ? points(pick, res) : null;
+            const p = res && pick ? points(pick, res, m.phase !== 'Grupos') : null;
             return (
               <div className={`row ${slug === me?.slug ? 'me' : ''}`} key={slug}>
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
-                  {pick ? `${pick.home} × ${pick.away}` : 'ainda não palpitou'}
+                  {pick ? `${pick.home} × ${pick.away}${m.phase !== 'Grupos' && pick.qualifier ? ` (${pick.qualifier === 'home' ? m.home : m.away} avança)` : ''}` : 'ainda não palpitou'}
                   {p != null && <b style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
                 </span>
               </div>
@@ -2034,7 +2101,10 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
   const [champ, setChamp] = useState(worldChampion || '');
   const [bootWinnerInput, setBootWinnerInput] = useState('');
 
-  const setV = (mid, side, v) => setVals((x) => ({ ...x, [mid]: { ...(x[mid] || {}), [side]: v.replace(/\D/g, '').slice(0, 2) } }));
+  const setV = (mid, side, v) => setVals((x) => ({
+    ...x,
+    [mid]: { ...(x[mid] || {}), [side]: side === 'qualifier' ? v : v.replace(/\D/g, '').slice(0, 2) }
+  }));
 
   const run = async (fn, ok) => {
     setBusy(true);
@@ -2064,11 +2134,19 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
               <input aria-label={`Gols ${m.home}`} inputMode="numeric" value={v.h ?? (r ? String(r.home) : '')} onChange={(e) => setV(m.id, 'h', e.target.value)} />
               <span style={{ textAlign: 'center' }}>×</span>
               <input aria-label={`Gols ${m.away}`} inputMode="numeric" value={v.a ?? (r ? String(r.away) : '')} onChange={(e) => setV(m.id, 'a', e.target.value)} />
+              {m.phase !== 'Grupos' && (
+                <select value={v.qualifier ?? (r?.qualifier || '')} onChange={(e) => setV(m.id, 'qualifier', e.target.value)}
+                  style={{ fontSize: 11, padding: '2px 4px' }}>
+                  <option value="">quem avança?</option>
+                  <option value="home">{m.home}</option>
+                  <option value="away">{m.away}</option>
+                </select>
+              )}
               <button className="bl-okbtn" disabled={busy} onClick={() => {
                 const h = v.h ?? (r ? String(r.home) : ''); const a = v.a ?? (r ? String(r.away) : '');
                 if (h === '' && a === '') return run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: null, p_away: null }), 'Resultado removido');
                 if (h === '' || a === '') return;
-                run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: parseInt(h, 10), p_away: parseInt(a, 10) }), 'Resultado salvo ✅');
+                run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: parseInt(h, 10), p_away: parseInt(a, 10), p_qualifier: vals[m.id]?.qualifier || null }), 'Resultado salvo ✅');
               }}>OK</button>
             </div>
           );
