@@ -1596,13 +1596,15 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
       {open && (
         <div className="bl-picks">
           {others.map(({ slug, name, pick }) => {
-            const p = res && pick ? points(pick, res, m.phase !== 'Grupos') : null;
+            const effectiveRes = res || (liveScore && liveScore.home != null && liveScore.away != null ? { home: liveScore.home, away: liveScore.away } : null);
+            const isLivePts = !res && effectiveRes;
+            const p = effectiveRes && pick ? points(pick, effectiveRes, m.phase !== 'Grupos') : null;
             return (
               <div className={`row ${slug === me?.slug ? 'me' : ''}`} key={slug}>
                 <span>{slug === me?.slug ? 'Você' : name}</span>
                 <span>
                   {pick ? `${pick.home} × ${pick.away}${m.phase !== 'Grupos' && pick.qualifier ? ` (${pick.qualifier === 'home' ? m.home : m.away} avança)` : ''}` : 'ainda não palpitou'}
-                  {p != null && <b style={{ marginLeft: 8 }}>{p === 3 ? '⭐3' : p === 1 ? '+1' : '0'}</b>}
+                  {p != null && <b style={{ marginLeft: 8, color: isLivePts ? 'var(--verde)' : undefined }}>{p === 3 ? '⭐3' : p >= 1 ? `+${p}` : '0'}</b>}
                 </span>
               </div>
             );
