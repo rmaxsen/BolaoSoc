@@ -1084,6 +1084,34 @@ export default function App() {
 
   const liveScores = useLiveScores(matches, me, rpc);
 
+  const liveRanking = useMemo(() => {
+    const hasLive = matches.some((m) => {
+      const s = liveScores?.[m.id];
+      return s && ['1H','2H','HT','ET','P','LIVE'].includes(s.status);
+    });
+    if (!hasLive) return null;
+    const rows = users.map((u) => {
+      let total = 0, exatos = 0, vencedores = 0;
+      for (const m of matches) {
+        const res = results[m.id];
+        const live = liveScores?.[m.id];
+        const effectiveRes = res || (live && live.home != null && live.away != null ? { home: live.home, away: live.away } : null);
+        if (!effectiveRes) continue;
+        const p = points(picksAll[u.slug]?.[m.id], effectiveRes, m.phase !== 'Grupos');
+        if (p == null) continue;
+        total += p; if (p === 3) exatos++; if (p >= 1) vencedores++;
+      }
+      const champHit = worldChampion && champPicks[u.slug] === worldChampion;
+      if (champHit) total += CHAMPION_PTS;
+      const bootHit = bootWinner && bootPicks[u.slug] && bootPicks[u.slug].toLowerCase() === bootWinner.toLowerCase();
+      if (bootHit) total += BOOT_PTS;
+      if (pedroVotes[u.slug] === 'G') total += 0.5;
+      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores };
+    });
+    rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
+    return rows;
+  }, [matches, results, liveScores, users, picksAll, champPicks, worldChampion, bootPicks, bootWinner, pedroVotes]);
+
   const pendentes = useMemo(() => {
     if (!me) return 0;
     return matches.filter((m) => {
@@ -1186,7 +1214,7 @@ export default function App() {
                 myChampion={champPicks[me.slug] || null} onSaveChampion={saveChampion} busy={busy}
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
-            {tab === 'ranking' && <RankingTab ranking={ranking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
+            {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
             {tab === 'admin' && me.isAdmin && (
@@ -1990,10 +2018,13 @@ function RankHistoryChart({ rankHistory, ranking }) {
   );
 }
 
-function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
+function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rankHistory }) {
   const encerrados = Object.keys(results || {}).length;
+  const displayRanking = liveRanking || ranking;
+  const isLive = !!liveRanking;
   return (
     <section aria-label="Classificação">
+      {isLive && <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--verde)', marginBottom: 4, fontWeight: 700 }}>● Pontuação ao vivo (provisória)</p>}
       <div className="bl-rank">
         <table>
           <thead>
@@ -2006,8 +2037,9 @@ function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
             </tr>
           </thead>
           <tbody>
-            {ranking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
-            {ranking.map((r, i) => {
+            {displayRanking.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>Ninguém entrou no bolão ainda.</td></tr>}
+            {displayRanking.map((r, i) => {
+              const official = ranking.find((x) => x.slug === r.slug);
               const rankCls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
               return (
                 <tr key={r.slug} className={rankCls} style={r.slug === meSlug ? { background: 'rgba(255,198,41,.18)' } : undefined}>
@@ -2021,11 +2053,16 @@ function RankingTab({ ranking, meSlug, results, worldChampion, rankHistory }) {
                     {i === 0 ? <img src="/trophy.png" alt="🏆" style={{ width: 22, height: 22, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : ''}
                     {r.name}{r.slug === meSlug ? ' (você)' : ''}
                   </td>
-                  <td className="tot">{r.total}</td>
+                  <td className="tot" style={isLive ? { color: 'var(--verde)' } : undefined}>
+                    {r.total}
+                    {isLive && official && official.total !== r.total && (
+                      <span style={{ fontSize: 10, color: 'var(--cinza)', marginLeft: 4 }}>({official.total})</span>
+                    )}
+                  </td>
                   <td className="num">{r.exatos}</td>
                   <td className="num">{r.vencedores}</td>
-                  <td className={`champ-col ${r.champHit ? 'bl-champ-hit' : ''}`}>
-                    {r.champTeam ? <span title={r.champTeam}><Flag team={r.champTeam} size={18} />{r.champHit ? ' ✓' : ''}</span> : '—'}
+                  <td className={`champ-col ${official?.champHit ? 'bl-champ-hit' : ''}`}>
+                    {official?.champTeam ? <span title={official.champTeam}><Flag team={official.champTeam} size={18} />{official.champHit ? ' ✓' : ''}</span> : '—'}
                   </td>
                 </tr>
               );
