@@ -163,17 +163,18 @@ async function fetchStandings() {
           rank: i + 1,
           team: e.team?.displayName,
           logo: e.team?.logos?.[0]?.href,
-          points: stats.points,
-          played: stats.gamesPlayed,
-          win: stats.wins,
-          draw: stats.ties,
-          lose: stats.losses,
-          gf: stats.pointsFor,
-          ga: stats.pointsAgainst,
-          gd: stats.pointDifferential,
+          points: stats.points ?? 0,
+          played: stats.gamesPlayed ?? 0,
+          win: stats.wins ?? 0,
+          draw: stats.ties ?? 0,
+          lose: stats.losses ?? 0,
+          gf: stats.pointsFor ?? 0,
+          ga: stats.pointsAgainst ?? 0,
+          gd: stats.pointDifferential ?? 0,
           desc: e.note?.description || '',
         };
-      }),
+      }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.team?.localeCompare(b.team))
+        .map((r, i) => ({ ...r, rank: i + 1 })),
     };
   });
   return { updated: new Date().toISOString(), groups };
@@ -1135,10 +1136,10 @@ export default function App() {
               <button className="bl-tab" data-on={tab === 'jogos' ? 1 : 0} onClick={() => { setTab('jogos'); loadAll().catch(() => {}); }}>
                 Jogos {pendentes > 0 && <span className="bl-badge">{pendentes}</span>}
               </button>
-              <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); }}>Ranking</button>
-              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => setTab('tabela')}>Tabela</button>
-              <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => setTab('artilharia')}>⚽ Art.</button>
-              {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); }}>Admin</button>}
+              <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); window.scrollTo(0,0); }}>Ranking</button>
+              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => { setTab('tabela'); window.scrollTo(0,0); }}>Tabela</button>
+              <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => { setTab('artilharia'); window.scrollTo(0,0); }}>⚽ Art.</button>
+              {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); window.scrollTo(0,0); }}>Admin</button>}
             </div>
           </nav>
 
