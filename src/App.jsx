@@ -333,6 +333,10 @@ function useLiveScores(matches, me, rpcFn) {
         const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
         const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
         for (const m of matches) {
+          // só considera jogo dentro de ±6h do kickoff (evita casar com evento de outra competição)
+          const kickoffMs = new Date(m.kickoff).getTime();
+          const nowMs = Date.now();
+          if (Math.abs(nowMs - kickoffMs) > 6 * 3600000) continue;
           const hNames = espnTeamNames(homeComp); const aNames = espnTeamNames(awayComp);
           if (hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n))) {
             const short = espnStatus(comp);
