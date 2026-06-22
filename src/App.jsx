@@ -738,7 +738,20 @@ const CSS = `
 .bl-mi-tabs button[data-on="1"]{background:var(--tinta);color:var(--cal);border-color:var(--tinta)}
 @media(prefers-reduced-motion:no-preference){.bl-mi-live .dot{animation:bl-blink 1s ease-in-out infinite}}
 @keyframes bl-blink{50%{opacity:.25}}
+
+/* ── KO Bracket ── */
+.bl-ko-phase{font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--canarinho);
+  margin:10px 0 6px;padding:6px 10px;background:rgba(255,198,41,.1);border-left:3px solid var(--canarinho);border-radius:0 6px 6px 0}
+.bl-ko-match{background:var(--papel);border:2px solid #20301F;border-radius:12px;padding:10px 12px;
+  box-shadow:0 4px 0 rgba(0,0,0,.25);font-size:13px}
+.bl-ko-team{display:flex;align-items:center;gap:8px;padding:4px 2px}
+.bl-ko-team+.bl-ko-team{border-top:1px solid rgba(32,48,31,.1)}
+.bl-ko-name{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-ko-score{font-weight:900;font-size:16px;min-width:20px;text-align:right}
+.bl-ko-team.winner .bl-ko-name{color:var(--bandeira);font-weight:800}
+.bl-ko-team.winner .bl-ko-score{color:var(--bandeira)}
 `;
+
 
 /* ============================================================ App ============================================================ */
 function TopBar({ matches, results, liveScores, now }) {
@@ -1215,7 +1228,7 @@ export default function App() {
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
-            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
@@ -1770,8 +1783,11 @@ function MatchInfo({ m, savedRes }) {
 }
 
 /* ============================ Tabela (standings da API) ============================ */
-function TabelaTab() {
+function TabelaTab({ matches = [], results = {} }) {
   const [state, setState] = useState({ loading: true });
+  const [groupsCollapsed, setGroupsCollapsed] = useState(false);
+
+  const hasKO = matches.some((m) => PHASES_KO.includes(m.phase));
 
   const load = useCallback(() => {
     setState({ loading: true });
@@ -1781,56 +1797,125 @@ function TabelaTab() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Auto-collapse groups when KO has started
+  useEffect(() => { if (hasKO) setGroupsCollapsed(true); }, [hasKO]);
+
+  // KO matches grouped by phase order
+  const koByPhase = (() => {
+    const koMatches = matches.filter((m) => PHASES_KO.includes(m.phase));
+    const grouped = {};
+    for (const m of koMatches) {
+      if (!grouped[m.phase]) grouped[m.phase] = [];
+      grouped[m.phase].push(m);
+    }
+    return PHASES_KO.map((ph) => ({ phase: ph, items: grouped[ph] || [] })).filter((g) => g.items.length > 0);
+  })();
+
   return (
     <section aria-label="Tabela dos grupos">
+      {hasKO && (
+        <div style={{ marginTop: 18, marginBottom: 8 }}>
+          <h2 className="bl-display" style={{ margin: '0 0 14px', fontSize: 22, color: 'var(--cal)' }}>🏆 Mata-mata</h2>
+          {koByPhase.map(({ phase, items }) => (
+            <div key={phase}>
+              <div className="bl-ko-phase">{phase}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 8, marginBottom: 8 }}>
+                {items.map((m) => {
+                  const res = results[m.id];
+                  const homeWins = res && (res.qualifier === 'home' || (!res.qualifier && res.home > res.away));
+                  const awayWins = res && (res.qualifier === 'away' || (!res.qualifier && res.away > res.home));
+                  return (
+                    <div key={m.id} className="bl-ko-match">
+                      <div className={`bl-ko-team${homeWins ? ' winner' : ''}`}>
+                        <Flag team={m.home} size={18} />
+                        <span className="bl-ko-name">{m.home}</span>
+                        <span className="bl-ko-score">{res ? res.home : '–'}</span>
+                      </div>
+                      <div className={`bl-ko-team${awayWins ? ' winner' : ''}`}>
+                        <Flag team={m.away} size={18} />
+                        <span className="bl-ko-name">{m.away}</span>
+                        <span className="bl-ko-score">{res ? res.away : '–'}</span>
+                      </div>
+                      {!res && <div style={{ fontSize: 10, color: 'var(--cinza)', marginTop: 4 }}>{fmtTime(m.kickoff)}</div>}
+                      {res?.qualifier && (
+                        <div style={{ fontSize: 10, color: 'var(--bandeira)', marginTop: 2 }}>
+                          avança: <b>{res.qualifier === 'home' ? m.home : m.away}</b>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
         <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>Tabela dos grupos</h2>
-        <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {hasKO && (
+            <button className="bl-f" data-on={groupsCollapsed ? 0 : 1} onClick={() => setGroupsCollapsed((c) => !c)}>
+              {groupsCollapsed ? '▸ expandir' : '▴ recolher'}
+            </button>
+          )}
+          <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
+        </div>
       </div>
 
-      {state.loading && <div className="bl-grp" style={{ padding: 0 }}><div className="bl-skel" style={{ height: 200, margin: 0, borderRadius: 0 }} /></div>}
+      {!groupsCollapsed && (
+        <>
+          {state.loading && <div className="bl-grp" style={{ padding: 0 }}><div className="bl-skel" style={{ height: 200, margin: 0, borderRadius: 0 }} /></div>}
 
-      {state.error && (
-        <div className="bl-panel" style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0 }}>
-            {`Não consegui carregar a tabela agora. ${state.error}`}
+          {state.error && (
+            <div className="bl-panel" style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0 }}>
+                {`Não consegui carregar a tabela agora. ${state.error}`}
+              </p>
+            </div>
+          )}
+
+          {state.data && state.data.groups?.length === 0 && (
+            <div className="bl-panel" style={{ textAlign: 'center' }}>
+              <p style={{ margin: 0 }}>A API ainda não publicou a classificação da Copa.</p>
+            </div>
+          )}
+
+          {state.data?.groups?.map((g) => (
+            <div className="bl-grp" key={g.group}>
+              <h3 className="bl-display">{g.group}</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th></th><th className="l">Seleção</th>
+                    <th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.rows.map((t) => (
+                    <tr key={t.team} className={t.rank <= 2 ? 'qual' : ''}>
+                      <td><span className="pos">{t.rank}</span></td>
+                      <td className="tname">{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.team}</td>
+                      <td>{t.played}</td><td>{t.win}</td><td>{t.draw}</td><td>{t.lose}</td>
+                      <td>{t.gd}</td><td className="pts">{t.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
+            Dados ao vivo via ESPN · os 2 primeiros de cada grupo (em verde) avançam.
           </p>
-        </div>
+        </>
       )}
 
-      {state.data && state.data.groups?.length === 0 && (
-        <div className="bl-panel" style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0 }}>A API ainda não publicou a classificação da Copa.</p>
-        </div>
+      {groupsCollapsed && (
+        <p style={{ color: 'rgba(244,240,228,.5)', fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+          Tabela de grupos recolhida · clique em "expandir" para ver.
+        </p>
       )}
-
-      {state.data?.groups?.map((g) => (
-        <div className="bl-grp" key={g.group}>
-          <h3 className="bl-display">{g.group}</h3>
-          <table>
-            <thead>
-              <tr>
-                <th></th><th className="l">Seleção</th>
-                <th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th><th>Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {g.rows.map((t) => (
-                <tr key={t.team} className={t.rank <= 2 ? 'qual' : ''}>
-                  <td><span className="pos">{t.rank}</span></td>
-                  <td className="tname">{t.logo && <img src={t.logo} alt="" loading="lazy" />}{t.team}</td>
-                  <td>{t.played}</td><td>{t.win}</td><td>{t.draw}</td><td>{t.lose}</td>
-                  <td>{t.gd}</td><td className="pts">{t.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
-
-      <p style={{ color: 'rgba(244,240,228,.7)', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
-        Dados ao vivo via ESPN · os 2 primeiros de cada grupo (em verde) avançam.
-      </p>
     </section>
   );
 }
