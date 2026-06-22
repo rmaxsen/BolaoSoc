@@ -341,6 +341,8 @@ function useLiveScores(matches, me, rpcFn) {
           const hNames = espnTeamNames(homeComp); const aNames = espnTeamNames(awayComp);
           if (hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n))) {
             const short = espnStatus(comp);
+            // ignora jogos não iniciados (status NS)
+            if (short === 'NS') continue;
             const h = homeComp?.score != null ? Number(homeComp.score) : null;
             const a = awayComp?.score != null ? Number(awayComp.score) : null;
             newScores[m.id] = { home: h, away: a, status: short, elapsed: comp.status?.displayClock || null };
