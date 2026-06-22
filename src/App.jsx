@@ -55,7 +55,7 @@ const TEAM_COLORS = {
   'Japão': '#003399', 'Coreia do Sul': '#c60c1e', 'Turquia': '#c8102e', 'Irã': '#c60c1e',
   'Egito': '#FFD700', 'Marrocos': '#005B3F', 'Senegal': '#00a651', 'Austrália': '#FFCD00',
   'Estados Unidos': '#002868', 'Canadá': '#FF0000', 'Costa Rica': '#002868', 'Panamá': '#0066cc',
-  'Equador': '#FFD700', 'Paraguai': '#cc0000', 'Paraguai': '#001699', 'Catar': '#8c1432',
+  'Equador': '#FFD700', 'Paraguai': '#cc0000', 'Catar': '#8c1432',
   'Arábia Saudita': '#006c41', 'Jordânia': '#000000', 'Uzbequistão': '#003399', 'Curaçao': '#2563eb',
   'Suécia': '#003399', 'Noruega': '#BA0C2F', 'Tcheca': '#0B40B5', 'Áustria': '#ED2939',
   'Bósnia e Herzegovina': '#0066cc', 'Escócia': '#0066cc', 'País de Gales': '#15af51',
@@ -1660,24 +1660,56 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           const isDraw = draftH != null && draftA != null && draftH === draftA;
           const curQ = d?.qualifier ?? myPicks[m.id]?.qualifier ?? null;
           if (!isDraw) return null;
+          const homeColor = TEAM_COLORS[m.home] || 'rgba(255,198,41,.1)';
+          const awayColor = TEAM_COLORS[m.away] || 'rgba(255,198,41,.1)';
           return (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--cinza)', alignSelf: 'center' }}>Quem avança?</span>
-              <button
-                className={`bl-btn${curQ === 'home' ? ' verde' : ''}`}
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                disabled={!inWindow}
-                onClick={() => setDraftScore(m.id, 'qualifier', 'home')}>
-                {m.home}
-              </button>
-              <button
-                className={`bl-btn${curQ === 'away' ? ' verde' : ''}`}
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                disabled={!inWindow}
-                onClick={() => setDraftScore(m.id, 'qualifier', 'away')}>
-                {m.away}
-              </button>
-            </div>
+            <>
+              <div style={{ marginTop: 12, padding: '10px 0', fontSize: 11, color: 'var(--cinza)', textAlign: 'center', marginBottom: -2 }}>🏆 Quem avança?</div>
+              <div style={{
+                display: 'flex',
+                gap: 0,
+                marginTop: 8,
+                borderRadius: 8,
+                overflow: 'hidden',
+                border: `2px solid rgba(255,198,41,.2)`,
+                background: `linear-gradient(90deg, ${homeColor}12, ${awayColor}12)`,
+              }}>
+                <button
+                  className={`bl-btn${curQ === 'home' ? ' verde' : ''}`}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: '10px 8px',
+                    borderRight: `1px solid ${homeColor}40`,
+                    background: curQ === 'home' ? `${homeColor}30` : 'transparent',
+                    color: curQ === 'home' ? 'var(--bandeira)' : 'var(--tinta)',
+                    fontWeight: curQ === 'home' ? 700 : 600,
+                  }}
+                  disabled={!inWindow}
+                  onClick={() => setDraftScore(m.id, 'qualifier', 'home')}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Flag team={m.home} size={20} /> {m.home}
+                  </span>
+                </button>
+                <button
+                  className={`bl-btn${curQ === 'away' ? ' verde' : ''}`}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: '10px 8px',
+                    borderLeft: `1px solid ${awayColor}40`,
+                    background: curQ === 'away' ? `${awayColor}30` : 'transparent',
+                    color: curQ === 'away' ? 'var(--bandeira)' : 'var(--tinta)',
+                    fontWeight: curQ === 'away' ? 700 : 600,
+                  }}
+                  disabled={!inWindow}
+                  onClick={() => setDraftScore(m.id, 'qualifier', 'away')}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    {m.away} <Flag team={m.away} size={20} />
+                  </span>
+                </button>
+              </div>
+            </>
           );
         })()}
 
