@@ -343,11 +343,6 @@ function useLiveScores(matches, me, rpcFn) {
             const h = homeComp?.score != null ? Number(homeComp.score) : null;
             const a = awayComp?.score != null ? Number(awayComp.score) : null;
             newScores[m.id] = { home: h, away: a, status: short, elapsed: comp.status?.displayClock || null };
-            // auto-save quando FT e admin logado
-            if (short === 'FT' && me?.isAdmin && h != null && a != null && !autoSaved.current.has(m.id)) {
-              autoSaved.current.add(m.id);
-              rpcFn('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: Math.round(h), p_away: Math.round(a) }).catch(() => {});
-            }
           }
         }
       }
