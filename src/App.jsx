@@ -55,7 +55,7 @@ const TEAM_COLORS = {
   'Japão': '#003399', 'Coreia do Sul': '#c60c1e', 'Turquia': '#c8102e', 'Irã': '#c60c1e',
   'Egito': '#FFD700', 'Marrocos': '#005B3F', 'Senegal': '#00a651', 'Austrália': '#FFCD00',
   'Estados Unidos': '#002868', 'Canadá': '#FF0000', 'Costa Rica': '#002868', 'Panamá': '#0066cc',
-  'Equador': '#FFD700', 'Paraguai': '#cc0000', 'Paraguai': '#001699', 'Catar': '#8c1432',
+  'Equador': '#FFD700', 'Paraguai': '#cc0000', 'Catar': '#8c1432',
   'Arábia Saudita': '#006c41', 'Jordânia': '#000000', 'Uzbequistão': '#003399', 'Curaçao': '#2563eb',
   'Suécia': '#003399', 'Noruega': '#BA0C2F', 'Tcheca': '#0B40B5', 'Áustria': '#ED2939',
   'Bósnia e Herzegovina': '#0066cc', 'Escócia': '#0066cc', 'País de Gales': '#15af51',
@@ -1640,19 +1640,59 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           <span>{fmtTime(m.kickoff)} (Brasília){m.city ? ` · ${m.city}` : ''}</span>
         </div>
 
-        <div className="bl-teams">
-          <div className="bl-team"><span className="fl"><Flag team={m.home} /></span><span className="nm">{m.home}</span></div>
-          <div className="bl-x">
-            <input className={`bl-score-in${hCls}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
-              disabled={!inWindow} value={valH ?? ''} placeholder="–"
-              onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, ''))} />
-            <span className="bl-vs">×</span>
-            <input className={`bl-score-in${aCls}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
-              disabled={!inWindow} value={valA ?? ''} placeholder="–"
-              onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
+        {m.phase === 'Grupos' ? (
+          <div className="bl-teams">
+            <div className="bl-team"><span className="fl"><Flag team={m.home} /></span><span className="nm">{m.home}</span></div>
+            <div className="bl-x">
+              <input className={`bl-score-in${hCls}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
+                disabled={!inWindow} value={valH ?? ''} placeholder="–"
+                onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, ''))} />
+              <span className="bl-vs">×</span>
+              <input className={`bl-score-in${aCls}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
+                disabled={!inWindow} value={valA ?? ''} placeholder="–"
+                onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
+            </div>
+            <div className="bl-team"><span className="fl"><Flag team={m.away} /></span><span className="nm">{m.away}</span></div>
           </div>
-          <div className="bl-team"><span className="fl"><Flag team={m.away} /></span><span className="nm">{m.away}</span></div>
-        </div>
+        ) : (() => {
+          const homeColor = TEAM_COLORS[m.home] || 'rgba(255,198,41,.1)';
+          const awayColor = TEAM_COLORS[m.away] || 'rgba(255,198,41,.1)';
+          return (
+            <div style={{
+              display: 'flex',
+              gap: 0,
+              borderRadius: 12,
+              overflow: 'hidden',
+              border: `2px solid #20301F`,
+              background: `linear-gradient(90deg, ${homeColor}12 0%, ${homeColor}08 45%, transparent 50%, ${awayColor}08 55%, ${awayColor}12 100%)`,
+              borderLeft: `4px solid ${homeColor}`,
+              borderRight: `4px solid ${awayColor}`,
+              minHeight: 100,
+              alignItems: 'center',
+              marginTop: 8,
+            }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 12px', borderRight: `1px solid rgba(255,198,41,.12)` }}>
+                <Flag team={m.home} size={32} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tinta)' }}>{m.home}</span>
+                <input className={`bl-score-in${hCls}`} aria-label={`Gols de ${m.home}`} inputMode="numeric" maxLength={2}
+                  disabled={!inWindow} value={valH ?? ''} placeholder="–"
+                  style={{ width: 40, fontSize: 20, fontWeight: 900, textAlign: 'center', padding: '4px 6px' }}
+                  onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, ''))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '0 12px', color: 'rgba(255,198,41,.7)', fontSize: 11, fontWeight: 700 }}>
+                VS
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 12px', borderLeft: `1px solid rgba(255,198,41,.12)` }}>
+                <Flag team={m.away} size={32} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tinta)' }}>{m.away}</span>
+                <input className={`bl-score-in${aCls}`} aria-label={`Gols de ${m.away}`} inputMode="numeric" maxLength={2}
+                  disabled={!inWindow} value={valA ?? ''} placeholder="–"
+                  style={{ width: 40, fontSize: 20, fontWeight: 900, textAlign: 'center', padding: '4px 6px' }}
+                  onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, ''))} />
+              </div>
+            </div>
+          );
+        })()}
 
         {m.phase !== 'Grupos' && (() => {
           const draftH = d ? d.h : valH;
@@ -1660,24 +1700,56 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
           const isDraw = draftH != null && draftA != null && draftH === draftA;
           const curQ = d?.qualifier ?? myPicks[m.id]?.qualifier ?? null;
           if (!isDraw) return null;
+          const homeColor = TEAM_COLORS[m.home] || 'rgba(255,198,41,.1)';
+          const awayColor = TEAM_COLORS[m.away] || 'rgba(255,198,41,.1)';
           return (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--cinza)', alignSelf: 'center' }}>Quem avança?</span>
-              <button
-                className={`bl-btn${curQ === 'home' ? ' verde' : ''}`}
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                disabled={!inWindow}
-                onClick={() => setDraftScore(m.id, 'qualifier', 'home')}>
-                {m.home}
-              </button>
-              <button
-                className={`bl-btn${curQ === 'away' ? ' verde' : ''}`}
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                disabled={!inWindow}
-                onClick={() => setDraftScore(m.id, 'qualifier', 'away')}>
-                {m.away}
-              </button>
-            </div>
+            <>
+              <div style={{ marginTop: 12, padding: '10px 0', fontSize: 11, color: 'var(--cinza)', textAlign: 'center', marginBottom: -2 }}>🏆 Quem avança?</div>
+              <div style={{
+                display: 'flex',
+                gap: 0,
+                marginTop: 8,
+                borderRadius: 8,
+                overflow: 'hidden',
+                border: `2px solid rgba(255,198,41,.2)`,
+                background: `linear-gradient(90deg, ${homeColor}12, ${awayColor}12)`,
+              }}>
+                <button
+                  className={`bl-btn${curQ === 'home' ? ' verde' : ''}`}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: '10px 8px',
+                    borderRight: `1px solid ${homeColor}40`,
+                    background: curQ === 'home' ? `${homeColor}30` : 'transparent',
+                    color: curQ === 'home' ? 'var(--bandeira)' : 'var(--tinta)',
+                    fontWeight: curQ === 'home' ? 700 : 600,
+                  }}
+                  disabled={!inWindow}
+                  onClick={() => setDraftScore(m.id, 'qualifier', 'home')}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Flag team={m.home} size={20} /> {m.home}
+                  </span>
+                </button>
+                <button
+                  className={`bl-btn${curQ === 'away' ? ' verde' : ''}`}
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: '10px 8px',
+                    borderLeft: `1px solid ${awayColor}40`,
+                    background: curQ === 'away' ? `${awayColor}30` : 'transparent',
+                    color: curQ === 'away' ? 'var(--bandeira)' : 'var(--tinta)',
+                    fontWeight: curQ === 'away' ? 700 : 600,
+                  }}
+                  disabled={!inWindow}
+                  onClick={() => setDraftScore(m.id, 'qualifier', 'away')}>
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    {m.away} <Flag team={m.away} size={20} />
+                  </span>
+                </button>
+              </div>
+            </>
           );
         })()}
 
@@ -1963,7 +2035,7 @@ function TabelaTab({ matches = [], results = {} }) {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
-        <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>Tabela dos grupos</h2>
+        <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>{hasKO ? 'Classificação' : 'Tabela dos grupos'}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           {hasKO && (
             <button className="bl-f" data-on={groupsCollapsed ? 0 : 1} onClick={() => setGroupsCollapsed((c) => !c)}>
