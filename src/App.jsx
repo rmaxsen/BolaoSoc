@@ -452,10 +452,10 @@ const CSS = `
 .bl-card-inner{border:2px dashed rgba(32,48,31,.2);border-radius:12px;margin:7px;padding:12px 12px 14px}
 .bl-card-collapsed{cursor:pointer;margin-bottom:6px;opacity:.75;transition:opacity .18s,transform .18s}
 .bl-card-collapsed:hover{opacity:1;transform:translateY(-1px)}
-.bl-collapsed-inner{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:nowrap;overflow:hidden}
-.bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:36px}
-.bl-collapsed-teams{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
-.bl-collapsed-teams .bl-collapsed-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center}
+.bl-collapsed-inner{display:flex;align-items:center;gap:8px;padding:12px 14px;flex-wrap:nowrap;overflow:hidden}
+.bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:32px}
+.bl-collapsed-teams{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
+.bl-collapsed-teams .bl-collapsed-name{font-size:12px;font-weight:600;line-height:1.1;white-space:normal;text-align:center;max-width:90px;word-break:break-word}
 .bl-collapsed-score{display:flex;align-items:center;gap:4px;font-weight:900;font-size:16px;white-space:nowrap;padding:0 4px}
 .bl-collapsed-x{color:var(--cinza);font-weight:400;font-size:13px}
 .bl-collapsed-expand{color:var(--cinza);font-size:14px;margin-left:4px}
