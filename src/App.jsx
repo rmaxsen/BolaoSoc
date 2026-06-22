@@ -1074,9 +1074,7 @@ export default function App() {
       const bootPlayer = bootPicks[u.slug] || null;
       const bootHit = bootWinner && bootPlayer && bootPlayer.toLowerCase() === bootWinner.toLowerCase();
       if (bootHit) total += BOOT_PTS;
-      const pedroBonus = pedroVotes[u.slug] === 'G' ? 0.5 : 0;
-      total += pedroBonus;
-      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit, bootPlayer, bootHit, pedroBonus };
+      return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit, bootPlayer, bootHit };
     });
     rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
     return rows;
@@ -1122,7 +1120,6 @@ export default function App() {
       if (champHit) total += CHAMPION_PTS;
       const bootHit = bootWinner && bootPicks[u.slug] && bootPicks[u.slug].toLowerCase() === bootWinner.toLowerCase();
       if (bootHit) total += BOOT_PTS;
-      if (pedroVotes[u.slug] === 'G') total += 0.5;
       return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores };
     });
     rows.sort((a, b) => b.total - a.total || b.exatos - a.exatos || b.vencedores - a.vencedores || a.name.localeCompare(b.name));
@@ -1434,7 +1431,6 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
   return (
     <section aria-label="Jogos">
       <ChampionCard myChampion={myChampion} onSave={onSaveChampion} busy={busy} />
-      <PedroVoteCard me={me} pedroVotes={pedroVotes} onVote={onPedroVote} busy={busy} />
       {statsData && (
         <div className="bl-stats-row">
           <div className="bl-stat-box"><div className="sv">{statsData.totalPts}</div><div className="sl">Total de pontos</div></div>
