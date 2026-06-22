@@ -131,7 +131,7 @@ const ESPN_V2 = 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world';
 async function espnGet(base, path, params = {}) {
   const url = new URL(base + path);
   Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, String(v)); });
-  const r = await fetch(url.toString());
+  const r = await fetch(url.toString(), { cache: 'no-store' });
   if (!r.ok) { const e = new Error(`ESPN ${r.status}`); e.kind = 'api'; throw e; }
   return r.json();
 }
