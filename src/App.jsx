@@ -454,8 +454,8 @@ const CSS = `
 .bl-card-collapsed:hover{opacity:1;transform:translateY(-1px)}
 .bl-collapsed-inner{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:nowrap;overflow:hidden}
 .bl-collapsed-date{font-size:11px;color:var(--cinza);white-space:nowrap;min-width:36px}
-.bl-collapsed-teams{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
-.bl-collapsed-teams .bl-collapsed-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-collapsed-teams{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.bl-collapsed-teams .bl-collapsed-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center}
 .bl-collapsed-score{display:flex;align-items:center;gap:4px;font-weight:900;font-size:16px;white-space:nowrap;padding:0 4px}
 .bl-collapsed-x{color:var(--cinza);font-weight:400;font-size:13px}
 .bl-collapsed-expand{color:var(--cinza);font-size:14px;margin-left:4px}
@@ -1527,13 +1527,13 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
         <div className="bl-collapsed-inner">
           <span className="bl-collapsed-date">{fmtTime(m.kickoff).split(' ')[0]}</span>
           <div className="bl-collapsed-teams">
-            <Flag team={m.home} /><span className="bl-collapsed-name">{m.home}</span>
+            <Flag team={m.home} size={22} /><span className="bl-collapsed-name">{m.home}</span>
           </div>
           <div className="bl-collapsed-score">
             <span>{res.home}</span><span className="bl-collapsed-x">×</span><span>{res.away}</span>
           </div>
-          <div className="bl-collapsed-teams" style={{ justifyContent: 'flex-end' }}>
-            <Flag team={m.away} /><span className="bl-collapsed-name">{m.away}</span>
+          <div className="bl-collapsed-teams">
+            <Flag team={m.away} size={22} /><span className="bl-collapsed-name">{m.away}</span>
           </div>
           {pts != null && <span className={`bl-pts p${pts}`} style={{ marginLeft: 8 }}>{pts === 3 ? '⭐3' : pts === 1 ? '+1' : '0'}</span>}
           {saved ? (
