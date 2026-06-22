@@ -2050,13 +2050,33 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
 
 /* ============================ Artilharia ============================ */
 function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootPicks, users, matches, results }) {
-  const [state, setState] = useState({ loading: true });
-  const load = useCallback(() => {
-    setState({ loading: true });
+  const ART_CACHE_KEY = 'bl_artilharia_cache';
+  const ART_TTL = 2 * 3600 * 1000; // 2 horas
+
+  const [state, setState] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(ART_CACHE_KEY));
+      if (cached && Date.now() - cached.ts < ART_TTL) return { loading: false, data: cached.data };
+    } catch {}
+    return { loading: true };
+  });
+
+  const load = useCallback((force = false) => {
+    if (!force) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(ART_CACHE_KEY));
+        if (cached && Date.now() - cached.ts < ART_TTL) { setState({ loading: false, data: cached.data }); return; }
+      } catch {}
+    }
+    setState((s) => ({ ...s, loading: true }));
     fetchArtilhariaFromGames(matches, results)
-      .then((data) => setState({ loading: false, data }))
+      .then((data) => {
+        localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+        setState({ loading: false, data });
+      })
       .catch((e) => setState({ loading: false, error: e.message }));
   }, [matches, results]);
+
   useEffect(() => { load(); }, [load]);
 
   return (
@@ -2064,7 +2084,7 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootP
       {me && <BootPickCard myPick={myBootPick} bootWinner={bootWinner} onSave={onSaveBootPick} busy={busy} artilhariaData={state.data || []} bootPicks={bootPicks} users={users} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: 'var(--cal)' }}>
         <h2 className="bl-display" style={{ margin: 0, fontSize: 20 }}>⚽ Artilharia</h2>
-        <button className="bl-f" data-on={0} onClick={load} disabled={state.loading}>↻ atualizar</button>
+        <button className="bl-f" data-on={0} onClick={() => load(true)} disabled={state.loading}>↻ atualizar</button>
       </div>
 
       {state.loading && <div className="bl-grp" style={{ padding: 0 }}><div className="bl-skel" style={{ height: 150, margin: 0, borderRadius: 0 }} /></div>}
