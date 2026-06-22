@@ -1278,6 +1278,31 @@ export default function App() {
               </div>
             </div>
           )}
+
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            style={{
+              position: 'fixed',
+              bottom: 20,
+              right: 20,
+              width: 50,
+              height: 50,
+              borderRadius: '50%',
+              background: 'var(--verde)',
+              border: 'none',
+              color: 'var(--tinta)',
+              fontSize: 24,
+              fontWeight: 700,
+              cursor: 'pointer',
+              opacity: 0.8,
+              transition: 'opacity .2s',
+            }}
+            onMouseEnter={(e) => (e.target.style.opacity = '1')}
+            onMouseLeave={(e) => (e.target.style.opacity = '0.8')}
+            title="Voltar ao topo"
+          >
+            ↑
+          </button>
         </>
       )}
       {toast && <div className="bl-toast" role="status">{toast}</div>}
@@ -2497,30 +2522,5 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
         </p>
       </div>
     </section>
-
-    <button
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        width: 50,
-        height: 50,
-        borderRadius: '50%',
-        background: 'var(--verde)',
-        border: 'none',
-        color: 'var(--tinta)',
-        fontSize: 24,
-        fontWeight: 700,
-        cursor: 'pointer',
-        opacity: 0.8,
-        transition: 'opacity .2s',
-      }}
-      onMouseEnter={(e) => (e.target.style.opacity = '1')}
-      onMouseLeave={(e) => (e.target.style.opacity = '0.8')}
-      title="Voltar ao topo"
-    >
-      ↑
-    </button>
   );
 }
