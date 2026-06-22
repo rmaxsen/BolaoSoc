@@ -1232,7 +1232,7 @@ export default function App() {
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
-                worldChampion={worldChampion}
+                worldChampion={worldChampion} liveScores={liveScores}
                 onDone={async (msg) => { await loadAll(); say(msg); }} onError={(e) => say(e)} busy={busy} setBusy={setBusy} />
             )}
           </main>
@@ -1463,13 +1463,23 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
       )}
 
       {(() => {
-        let scrollAssigned = false;
+        const LIVE_ST = ['1H','2H','HT','ET','P','LIVE','INT','BT'];
+        // dia-alvo do scroll: 1º com jogo AO VIVO; se não houver, 1º com jogo sem resultado
+        let targetKey = null;
+        for (const { items } of byDay) {
+          const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+          if (visible.some((m) => LIVE_ST.includes(liveScores?.[m.id]?.status))) { targetKey = dayKey(items[0].kickoff); break; }
+        }
+        if (!targetKey) {
+          for (const { items } of byDay) {
+            const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
+            if (visible.some((m) => !results[m.id])) { targetKey = dayKey(items[0].kickoff); break; }
+          }
+        }
         return byDay.map(({ day, items }) => {
           const visible = hideFinished ? items.filter((m) => !results[m.id]) : items;
           if (!visible.length) return null;
-          const hasOpen = visible.some((m) => !results[m.id] && !['1H','2H','HT','ET','P','LIVE','FT'].includes(liveScores?.[m.id]?.status));
-          let dayRef = null;
-          if (hasOpen && !scrollAssigned) { dayRef = firstOpenRef; scrollAssigned = true; }
+          const dayRef = dayKey(day) === targetKey ? firstOpenRef : null;
           return (
             <div key={dayKey(day)} ref={dayRef}>
               <div className="bl-day"><span>{fmtDay(day)}</span></div>
@@ -2165,7 +2175,7 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
 }
 
 /* ============================ Admin ============================ */
-function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onError, busy, setBusy }) {
+function AdminTab({ me, matches, results, users, now, worldChampion, liveScores = {}, onDone, onError, busy, setBusy }) {
   const started = matches.filter((m) => now >= new Date(m.kickoff).getTime());
   const [vals, setVals] = useState({});
   const [fetching, setFetching] = useState({});
@@ -2201,6 +2211,8 @@ function AdminTab({ me, matches, results, users, now, worldChampion, onDone, onE
     let saved = 0, skipped = 0;
     try {
       for (const m of started) {
+        // não sobrescreve jogo que o app vê AO VIVO (evita casar com evento errado/antigo da ESPN)
+        if (['1H','2H','HT','ET','P','LIVE','INT','BT'].includes(liveScores?.[m.id]?.status)) { skipped++; continue; }
         const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
         if (!ev) { skipped++; continue; }
         const comp = ev.competitions[0];
