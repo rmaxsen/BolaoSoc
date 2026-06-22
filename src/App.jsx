@@ -797,7 +797,7 @@ const CSS = `
   margin:16px 0 12px;padding:8px 12px;background:rgba(255,198,41,.1);border-left:4px solid var(--canarinho);border-radius:0 6px 6px 0}
 .bl-ko-match{background:var(--papel);border:2px solid #20301F;border-radius:16px;padding:0;
   box-shadow:0 6px 16px rgba(0,0,0,.35);font-size:13px;display:flex;align-items:stretch;
-  min-height:140px;overflow:hidden}
+  min-height:140px;overflow:hidden;position:relative}
 .bl-ko-match::before,.bl-ko-match::after{content:'';position:absolute;width:2px;height:60%;background:rgba(255,198,41,.25);top:20%}
 .bl-ko-match::before{left:48%}.bl-ko-match::after{right:48%}
 .bl-ko-team{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:16px 14px;flex:1;
@@ -1913,7 +1913,7 @@ function TabelaTab({ matches = [], results = {} }) {
           {koByPhase.map(({ phase, items }) => (
             <div key={phase}>
               <div className="bl-ko-phase">{phase}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 14, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
                 {items.map((m) => {
                   const res = results[m.id];
                   const homeWins = res && (res.qualifier === 'home' || (!res.qualifier && res.home > res.away));
