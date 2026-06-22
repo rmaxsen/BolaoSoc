@@ -305,6 +305,34 @@ async function fetchMatchInfo(home, away, kickoff) {
   };
 }
 
+async function fetchArtilhariaFromGames(matches, results) {
+  const scorers = {};
+  const finalized = matches.filter((m) => results[m.id]);
+
+  for (const m of finalized) {
+    try {
+      const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
+      if (!ev) continue;
+      const summary = await espnGet(ESPN_BASE, '/summary', { event: ev.id }).catch(() => ({}));
+
+      for (const roster of summary.rosters || []) {
+        const teamName = roster.team?.displayName;
+        for (const player of roster.roster || []) {
+          for (const play of player.plays || []) {
+            if (!play.didScore) continue;
+            const playerName = player.athlete?.displayName;
+            if (!playerName) continue;
+            if (!scorers[playerName]) scorers[playerName] = { name: playerName, team: teamName, goals: 0, apps: 0 };
+            scorers[playerName].goals++;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return Object.values(scorers).sort((a, b) => b.goals - a.goals);
+}
+
 async function fetchArtilharia() {
   const data = await espnGet(ESPN_BASE, '/statistics', { _bust: Math.random().toString(36).slice(2) });
   const cat = (data.stats || []).find((s) => s.abbreviation === 'G' || (s.displayName || '').toLowerCase().includes('goal'));
@@ -1233,7 +1261,7 @@ export default function App() {
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
             {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} />}
-            {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} />}
+            {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} matches={matches} results={results} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
                 worldChampion={worldChampion} liveScores={liveScores}
@@ -2021,14 +2049,14 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
 }
 
 /* ============================ Artilharia ============================ */
-function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootPicks, users }) {
+function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootPicks, users, matches, results }) {
   const [state, setState] = useState({ loading: true });
   const load = useCallback(() => {
     setState({ loading: true });
-    fetchArtilharia()
+    fetchArtilhariaFromGames(matches, results)
       .then((data) => setState({ loading: false, data }))
       .catch((e) => setState({ loading: false, error: e.message }));
-  }, []);
+  }, [matches, results]);
   useEffect(() => { load(); }, [load]);
 
   return (
