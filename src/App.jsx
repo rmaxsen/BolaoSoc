@@ -306,7 +306,7 @@ async function fetchMatchInfo(home, away, kickoff) {
 }
 
 async function fetchArtilharia() {
-  const data = await espnGet(ESPN_BASE, '/statistics', { _t: Date.now() });
+  const data = await espnGet(ESPN_BASE, '/statistics', { _bust: Math.random().toString(36).slice(2) });
   const cat = (data.stats || []).find((s) => s.abbreviation === 'G' || (s.displayName || '').toLowerCase().includes('goal'));
   return (cat?.leaders || []).map((l) => ({
     name: l.athlete?.displayName || l.athlete?.fullName || '—',
