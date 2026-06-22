@@ -46,6 +46,24 @@ const FLAG_CODES = {
   'Inglaterra': 'gb-eng', 'Croácia': 'hr', 'Panamá': 'pa', 'Gana': 'gh',
 };
 
+/* Team primary colors (jersey colors) for KO design */
+const TEAM_COLORS = {
+  'Brasil': '#1e3c72', 'Argentina': '#1a5aa0', 'França': '#003399', 'Alemanha': '#000000',
+  'Holanda': '#FF6B35', 'Itália': '#0066cc', 'Espanha': '#c60c1e', 'Portugal': '#006600',
+  'Inglaterra': '#003366', 'Bélgica': '#FFD700', 'Uruguai': '#001f3f', 'Croácia': '#c60c1e',
+  'Suíça': '#c8102e', 'México': '#006c3a', 'Colômbia': '#FFD700', 'Peru': '#c8102e',
+  'Japão': '#003399', 'Coreia do Sul': '#c60c1e', 'Turquia': '#c8102e', 'Irã': '#c60c1e',
+  'Egito': '#FFD700', 'Marrocos': '#005B3F', 'Senegal': '#00a651', 'Austrália': '#FFCD00',
+  'Estados Unidos': '#002868', 'Canadá': '#FF0000', 'Costa Rica': '#002868', 'Panamá': '#0066cc',
+  'Equador': '#FFD700', 'Paraguai': '#cc0000', 'Paraguai': '#001699', 'Catar': '#8c1432',
+  'Arábia Saudita': '#006c41', 'Jordânia': '#000000', 'Uzbequistão': '#003399', 'Curaçao': '#2563eb',
+  'Suécia': '#003399', 'Noruega': '#BA0C2F', 'Tcheca': '#0B40B5', 'Áustria': '#ED2939',
+  'Bósnia e Herzegovina': '#0066cc', 'Escócia': '#0066cc', 'País de Gales': '#15af51',
+  'Iraque': '#CE1126', 'Haiti': '#00209F', 'Costa do Marfim': '#FCD116', 'Gana': '#FFD700',
+  'Tunísia': '#E70013', 'Cabo Verde': '#2563eb', 'RD Congo': '#007fff', 'Rep. Tcheca': '#0B40B5',
+  'Nigéria': '#007A5E', 'África do Sul': '#FFB81C', 'Nova Zelândia': '#000000',
+};
+
 /* Componente de bandeira: imagem real com fallback pro emoji se faltar código. */
 function Flag({ team, size = 44 }) {
   const code = FLAG_CODES[team];
@@ -776,15 +794,25 @@ const CSS = `
 
 /* ── KO Bracket ── */
 .bl-ko-phase{font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--canarinho);
-  margin:10px 0 6px;padding:6px 10px;background:rgba(255,198,41,.1);border-left:3px solid var(--canarinho);border-radius:0 6px 6px 0}
-.bl-ko-match{background:var(--papel);border:2px solid #20301F;border-radius:12px;padding:10px 12px;
-  box-shadow:0 4px 0 rgba(0,0,0,.25);font-size:13px}
-.bl-ko-team{display:flex;align-items:center;gap:8px;padding:4px 2px}
-.bl-ko-team+.bl-ko-team{border-top:1px solid rgba(32,48,31,.1)}
-.bl-ko-name{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bl-ko-score{font-weight:900;font-size:16px;min-width:20px;text-align:right}
+  margin:16px 0 12px;padding:8px 12px;background:rgba(255,198,41,.1);border-left:4px solid var(--canarinho);border-radius:0 6px 6px 0}
+.bl-ko-match{background:var(--papel);border:2px solid #20301F;border-radius:16px;padding:0;
+  box-shadow:0 6px 16px rgba(0,0,0,.35);font-size:13px;display:flex;align-items:stretch;
+  min-height:140px;overflow:hidden}
+.bl-ko-match::before,.bl-ko-match::after{content:'';position:absolute;width:2px;height:60%;background:rgba(255,198,41,.25);top:20%}
+.bl-ko-match::before{left:48%}.bl-ko-match::after{right:48%}
+.bl-ko-team{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:16px 14px;flex:1;
+  border-right:1px solid rgba(255,198,41,.12);position:relative}
+.bl-ko-team:last-child{border-right:none}
+.bl-ko-team.winner{background:rgba(255,198,41,.05)}
+.bl-ko-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tinta)}
+.bl-ko-score{font-weight:900;font-size:28px;line-height:1;color:rgba(244,240,228,.9)}
 .bl-ko-team.winner .bl-ko-name{color:var(--bandeira);font-weight:800}
 .bl-ko-team.winner .bl-ko-score{color:var(--bandeira)}
+.bl-ko-vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-weight:900;font-size:11px;
+  letter-spacing:1px;color:rgba(255,198,41,.7);background:var(--papel);padding:4px 8px;white-space:nowrap;
+  border-radius:4px;border:1.5px solid rgba(255,198,41,.25);z-index:10}
+.bl-ko-info{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--cinza);
+  white-space:nowrap;letter-spacing:.5px}
 `;
 
 
@@ -1885,28 +1913,45 @@ function TabelaTab({ matches = [], results = {} }) {
           {koByPhase.map(({ phase, items }) => (
             <div key={phase}>
               <div className="bl-ko-phase">{phase}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 14, marginBottom: 16 }}>
                 {items.map((m) => {
                   const res = results[m.id];
                   const homeWins = res && (res.qualifier === 'home' || (!res.qualifier && res.home > res.away));
                   const awayWins = res && (res.qualifier === 'away' || (!res.qualifier && res.away > res.home));
+                  const homeColor = TEAM_COLORS[m.home] || 'rgba(255,198,41,.1)';
+                  const awayColor = TEAM_COLORS[m.away] || 'rgba(255,198,41,.1)';
                   return (
-                    <div key={m.id} className="bl-ko-match">
-                      <div className={`bl-ko-team${homeWins ? ' winner' : ''}`}>
-                        <Flag team={m.home} size={18} />
-                        <span className="bl-ko-name">{m.home}</span>
+                    <div key={m.id} className="bl-ko-match" style={{
+                      background: `linear-gradient(90deg, ${homeColor}12 0%, ${homeColor}08 45%, transparent 50%, ${awayColor}08 55%, ${awayColor}12 100%)`,
+                      borderLeft: `4px solid ${homeColor}`,
+                      borderRight: `4px solid ${awayColor}`,
+                    }}>
+                      <div className={`bl-ko-team${homeWins ? ' winner' : ''}`} style={{
+                        background: homeWins ? `${homeColor}18` : 'transparent',
+                        borderBottom: res?.qualifier === 'home' ? `3px solid ${homeColor}` : 'none',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Flag team={m.home} size={32} />
+                          <span className="bl-ko-name">{m.home}</span>
+                        </div>
                         <span className="bl-ko-score">{res ? res.home : '–'}</span>
                       </div>
-                      <div className={`bl-ko-team${awayWins ? ' winner' : ''}`}>
-                        <Flag team={m.away} size={18} />
-                        <span className="bl-ko-name">{m.away}</span>
+                      <div className={`bl-ko-team${awayWins ? ' winner' : ''}`} style={{
+                        background: awayWins ? `${awayColor}18` : 'transparent',
+                        borderBottom: res?.qualifier === 'away' ? `3px solid ${awayColor}` : 'none',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Flag team={m.away} size={32} />
+                          <span className="bl-ko-name">{m.away}</span>
+                        </div>
                         <span className="bl-ko-score">{res ? res.away : '–'}</span>
                       </div>
-                      {!res && <div style={{ fontSize: 10, color: 'var(--cinza)', marginTop: 4 }}>{fmtTime(m.kickoff)}</div>}
+                      <span className="bl-ko-vs">VS</span>
+                      {!res && <span className="bl-ko-info">{fmtTime(m.kickoff)}</span>}
                       {res?.qualifier && (
-                        <div style={{ fontSize: 10, color: 'var(--bandeira)', marginTop: 2 }}>
-                          avança: <b>{res.qualifier === 'home' ? m.home : m.away}</b>
-                        </div>
+                        <span className="bl-ko-info" style={{ color: 'var(--bandeira)', fontWeight: 700 }}>
+                          ✓ {res.qualifier === 'home' ? m.home : m.away}
+                        </span>
                       )}
                     </div>
                   );
