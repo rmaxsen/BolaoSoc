@@ -2177,7 +2177,7 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
 
 /* ============================ Admin ============================ */
 function AdminTab({ me, matches, results, users, now, worldChampion, liveScores = {}, onDone, onError, busy, setBusy }) {
-  const started = matches.filter((m) => now >= new Date(m.kickoff).getTime());
+  const started = matches.filter((m) => now >= new Date(m.kickoff).getTime() || results[m.id]);
   const [vals, setVals] = useState({});
   const [fetching, setFetching] = useState({});
   const [fase, setFase] = useState(PHASES_KO[0]);
