@@ -337,7 +337,7 @@ function useLiveScores(matches, me, rpcFn) {
         for (const m of matches) {
           // só casa se a data do kickoff em Brasília bate com a data do evento ESPN
           const kickoffDateBR = new Date(m.kickoff).toLocaleDateString('pt-BR', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-          if (evDateBR && evDateBR !== kickoffDateBR) continue;
+          if (!evDateBR || evDateBR !== kickoffDateBR) continue;
           const hNames = espnTeamNames(homeComp); const aNames = espnTeamNames(awayComp);
           if (hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n))) {
             const short = espnStatus(comp);
