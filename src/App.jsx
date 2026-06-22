@@ -1273,7 +1273,7 @@ export default function App() {
                 Jogos {pendentes > 0 && <span className="bl-badge">{pendentes}</span>}
               </button>
               <button className="bl-tab" data-on={tab === 'ranking' ? 1 : 0} onClick={() => { setTab('ranking'); loadAll().catch(() => {}); window.scrollTo(0,0); }}>Ranking</button>
-              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => { setTab('tabela'); window.scrollTo(0,0); }}>Tabela</button>
+              <button className="bl-tab" data-on={tab === 'tabela' ? 1 : 0} onClick={() => { setTab('tabela'); window.scrollTo(0,0); }}>{matches.some((m) => PHASES_KO.includes(m.phase)) ? 'Classificação' : 'Tabela'}</button>
               <button className="bl-tab" data-on={tab === 'artilharia' ? 1 : 0} onClick={() => { setTab('artilharia'); window.scrollTo(0,0); }}>⚽ Art.</button>
               {me.isAdmin && <button className="bl-tab" data-on={tab === 'admin' ? 1 : 0} onClick={() => { setTab('admin'); loadAll().catch(() => {}); window.scrollTo(0,0); }}>Admin</button>}
             </div>
@@ -1664,7 +1664,7 @@ function MatchCard({ m, me, users, now, picksAll, myPicks, draft, res, setDraftS
               borderRadius: 12,
               overflow: 'hidden',
               border: `2px solid #20301F`,
-              background: `linear-gradient(90deg, ${homeColor}12 0%, ${homeColor}08 45%, transparent 50%, ${awayColor}08 55%, ${awayColor}12 100%)`,
+              background: `linear-gradient(90deg, ${homeColor}1f 0%, ${homeColor}14 45%, transparent 50%, ${awayColor}14 55%, ${awayColor}1f 100%)`,
               borderLeft: `4px solid ${homeColor}`,
               borderRight: `4px solid ${awayColor}`,
               minHeight: 100,
@@ -1994,7 +1994,7 @@ function TabelaTab({ matches = [], results = {} }) {
                   const awayColor = TEAM_COLORS[m.away] || 'rgba(255,198,41,.1)';
                   return (
                     <div key={m.id} className="bl-ko-match" style={{
-                      background: `linear-gradient(90deg, ${homeColor}12 0%, ${homeColor}08 45%, transparent 50%, ${awayColor}08 55%, ${awayColor}12 100%)`,
+                      background: `linear-gradient(90deg, ${homeColor}1f 0%, ${homeColor}14 45%, transparent 50%, ${awayColor}14 55%, ${awayColor}1f 100%)`,
                       borderLeft: `4px solid ${homeColor}`,
                       borderRight: `4px solid ${awayColor}`,
                     }}>
