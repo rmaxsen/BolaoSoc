@@ -2034,14 +2034,21 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
       {users && users.some(u => bootPicks[u.slug]) && (
         <div style={{ marginTop: 12, borderTop: '1px solid rgba(32,48,31,.15)', paddingTop: 10 }}>
           <div style={{ fontSize: 11, color: 'var(--cinza)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Palpites da galera</div>
-          {users.filter(u => bootPicks[u.slug]).sort((a, b) => a.name.localeCompare(b.name)).map(u => (
-            <div key={u.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid rgba(32,48,31,.07)' }}>
-              <span style={{ color: 'var(--cinza)' }}>{u.name}</span>
-              <b style={{ color: bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase() ? 'var(--canarinho)' : 'var(--tinta)' }}>
-                {bootPicks[u.slug]}{bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase() ? ' ✓' : ''}
-              </b>
-            </div>
-          ))}
+          {users.filter(u => bootPicks[u.slug]).sort((a, b) => a.name.localeCompare(b.name)).map(u => {
+            const isLeader = leader && bootPicks[u.slug]?.toLowerCase() === leader.name.toLowerCase();
+            const isWinner = bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase();
+            return (
+              <div key={u.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 8px', borderBottom: '1px solid rgba(32,48,31,.07)', background: isLeader && !bootWinner ? 'rgba(255,198,41,.1)' : 'transparent', borderRadius: 4 }}>
+                <span style={{ color: 'var(--cinza)' }}>{u.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <b style={{ color: isWinner ? 'var(--canarinho)' : 'var(--tinta)' }}>
+                    {bootPicks[u.slug]}{isWinner ? ' ✓' : ''}
+                  </b>
+                  {isLeader && !bootWinner && <span style={{ fontSize: 10, color: 'var(--canarinho)', fontWeight: 700 }}>+2 PTS</span>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
