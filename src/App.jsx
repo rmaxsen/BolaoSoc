@@ -1956,9 +1956,157 @@ function MatchInfo({ m, savedRes }) {
   );
 }
 
+/* ============================ Bracket Overlay ============================ */
+function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false, t = {} }) {
+  // Sincroniza os 32 avos com os grupos da tabela
+  const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  const roundsToShow = [
+    { label: '32 AVOS', phase: '32 avos de final' },
+    { label: 'OITAVAS', phase: 'Oitavas de final' },
+    { label: 'QUARTAS', phase: 'Quartas de final' },
+    { label: 'SEMIFINAL', phase: 'Semifinal' },
+    { label: 'FINAL', phase: 'Final' },
+  ];
+
+  // Organiza matches por fase
+  const matchesByPhase = {};
+  for (const m of matches.filter(m => PHASES_KO.includes(m.phase))) {
+    if (!matchesByPhase[m.phase]) matchesByPhase[m.phase] = [];
+    matchesByPhase[m.phase].push(m);
+  }
+
+  // Tenta pegar dados da API (simulado) para grupos
+  const [standings, setStandings] = useState(null);
+  useEffect(() => {
+    fetchStandings().then(setStandings).catch(() => {});
+  }, []);
+
+  const getGroupQualifiers = () => {
+    if (!standings?.groups) return {};
+    const qualifiers = {};
+    for (const g of standings.groups) {
+      qualifiers[g.group] = g.rows.slice(0, 2).map(r => r.team);
+    }
+    return qualifiers;
+  };
+
+  const quals = getGroupQualifiers();
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 100, backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        position: 'relative', background: t.cardBg || 'linear-gradient(180deg,#10182b,#0a0e1a)', borderRadius: 18,
+        padding: 'clamp(20px,5vw,40px)', border: `1px solid ${t.cardBorder}`, maxWidth: 1200, maxHeight: '90vh',
+        overflowX: 'auto',
+      }}>
+        {/* Fechar */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.1)', border: 'none',
+            borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', color: t.text,
+          }}
+        >
+          ✕
+        </button>
+
+        <h2 style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 20, letterSpacing: '.16em', color: t.gold, margin: '0 0 20px', textAlign: 'center' }}>
+          🏆 CHAVEAMENTO COPA 2026
+        </h2>
+
+        {/* Bracket Grid */}
+        <div style={{ display: 'flex', gap: 'clamp(12px,3vw,20px)', overflowX: 'auto', padding: '10px 0' }}>
+          {roundsToShow.map((round, ri) => {
+            const phaseMateches = matchesByPhase[round.phase] || [];
+            const teamsInRound = phaseMateches.length > 0 ? phaseMateches.length * 2 : [];
+
+            return (
+              <div key={round.phase} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
+                <div style={{
+                  fontFamily: 'Oswald', fontWeight: 600, fontSize: 11, letterSpacing: '.2em', color: t.gold,
+                  textAlign: 'center', whiteSpace: 'nowrap',
+                }}>
+                  {round.label}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(20px,5vw,40px)' }}>
+                  {phaseMateches.map((match, mi) => {
+                    const res = results[match.id];
+                    const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+                    const homeTeam = match.home;
+                    const awayTeam = match.away;
+                    const homeFlag = FLAG_CODES[homeTeam];
+                    const awayFlag = FLAG_CODES[awayTeam];
+
+                    return (
+                      <div key={match.id} style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
+                        {/* Home */}
+                        <div style={{
+                          width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'home' ? t.gold : t.cardBorder}`,
+                          display: 'grid', placeItems: 'center', background: winner === 'home' ? `${t.gold}22` : 'transparent',
+                          position: 'relative',
+                        }}>
+                          {homeFlag ? (
+                            <img src={`https://flagcdn.com/w80/${homeFlag}.png`} alt={homeTeam} style={{
+                              width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
+                            }} />
+                          ) : (
+                            <span style={{ fontSize: 18 }}>{FLAG_CODES[homeTeam] ? '🚩' : '?'}</span>
+                          )}
+                          {winner === 'home' && (
+                            <div style={{
+                              position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
+                              background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
+                              fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
+                            }}>✓</div>
+                          )}
+                        </div>
+
+                        {/* Away */}
+                        <div style={{
+                          width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'away' ? t.gold : t.cardBorder}`,
+                          display: 'grid', placeItems: 'center', background: winner === 'away' ? `${t.gold}22` : 'transparent',
+                          position: 'relative',
+                        }}>
+                          {awayFlag ? (
+                            <img src={`https://flagcdn.com/w80/${awayFlag}.png`} alt={awayTeam} style={{
+                              width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
+                            }} />
+                          ) : (
+                            <span style={{ fontSize: 18 }}>?</span>
+                          )}
+                          {winner === 'away' && (
+                            <div style={{
+                              position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
+                              background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
+                              fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
+                            }}>✓</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{
+          marginTop: 16, fontSize: 12, color: t.sub, textAlign: 'center', fontFamily: 'Barlow Semi Condensed',
+        }}>Clique fora para fechar</div>
+      </div>
+    </div>
+  );
+}
+
 /* ============================ Knockout Showcase (Cinema) ============================ */
 function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null }) {
   const [idx, setIdx] = useState(0);
+  const [showBracket, setShowBracket] = useState(false);
   const koMatches = useMemo(() => matches.filter((m) => PHASES_KO.includes(m.phase)), [matches]);
   if (koMatches.length === 0) return null;
 
@@ -2033,8 +2181,25 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
     <div style={{
       minHeight: '100vh', width: '100%', background: t.pageBg, fontFamily: 'Barlow,sans-serif',
       display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'clamp(20px,5vw,52px) 18px 60px',
-      transition: 'background .4s ease',
+      transition: 'background .4s ease', position: 'relative',
     }}>
+      {/* Bracket button */}
+      <button
+        onClick={() => setShowBracket(true)}
+        style={{
+          position: 'fixed', top: 'clamp(20px, 5vw, 52px)', right: 18, zIndex: 40,
+          padding: '10px 18px', borderRadius: 11, border: `1px solid ${t.cardBorder}`, background: t.slabBg,
+          color: t.text, fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 13, letterSpacing: '.08em',
+          cursor: 'pointer', transition: 'background .2s',
+        }}
+        onMouseEnter={(e) => e.target.style.background = `rgba(255,255,255,.1)`}
+        onMouseLeave={(e) => e.target.style.background = t.slabBg}
+      >
+        🏆 BRACKET
+      </button>
+
+      {showBracket && <BracketOverlay onClose={() => setShowBracket(false)} matches={matches} results={results} darkMode={darkMode} t={t} />}
+
       <div style={{ width: '100%', maxWidth: 760, marginBottom: 'clamp(18px,4vw,30px)', textAlign: 'center' }}>
         <h1 style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(24px,5vw,28px)', letterSpacing: '.16em', color: t.text, margin: 0, marginBottom: 4 }}>MATA-MATA</h1>
         <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 11, letterSpacing: '.22em', color: t.gold }}>COPA 2026</div>
