@@ -1964,33 +1964,42 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
     fetchStandings().then(setStandings).catch(() => {});
   }, []);
 
-  // Pega os 2 qualificados de cada grupo
-  const getGroupQualifiers = () => {
-    if (!standings?.groups) return {};
-    const qualifiers = {};
-    for (const g of standings.groups) {
-      qualifiers[g.group] = g.rows.slice(0, 2).map(r => r.team);
+  // Monta seed32 a partir dos matches de 32 avos ou standings
+  const seed32 = useMemo(() => {
+    const matches32 = matches.filter(m => m.phase === '32 avos de final');
+    if (matches32.length > 0) {
+      // Se tem matches de 32 avos, usa eles
+      const teams = [];
+      matches32.forEach(m => {
+        teams.push(m.home, m.away);
+      });
+      return teams;
     }
-    return qualifiers;
-  };
 
-  const quals = getGroupQualifiers();
+    // Fallback: tenta pegar de standings
+    if (standings?.groups) {
+      const quals = {};
+      for (const g of standings.groups) {
+        quals[g.group] = g.rows.slice(0, 2).map(r => r.team);
+      }
+      return [
+        quals['A']?.[0], quals['B']?.[1],
+        quals['C']?.[0], quals['D']?.[1],
+        quals['E']?.[0], quals['F']?.[1],
+        quals['G']?.[0], quals['H']?.[1],
+        quals['I']?.[0], quals['J']?.[1],
+        quals['K']?.[0], quals['L']?.[1],
+        quals['B']?.[0], quals['A']?.[1],
+        quals['D']?.[0], quals['C']?.[1],
+        quals['F']?.[0], quals['E']?.[1],
+        quals['H']?.[0], quals['G']?.[1],
+        quals['J']?.[0], quals['I']?.[1],
+        quals['L']?.[0], quals['K']?.[1],
+      ].filter(Boolean);
+    }
 
-  // Monta os 32 avos em ordem: A1 vs B2, C1 vs D2, etc
-  const seed32 = [
-    quals['A']?.[0], quals['B']?.[1],
-    quals['C']?.[0], quals['D']?.[1],
-    quals['E']?.[0], quals['F']?.[1],
-    quals['G']?.[0], quals['H']?.[1],
-    quals['I']?.[0], quals['J']?.[1],
-    quals['K']?.[0], quals['L']?.[1],
-    quals['B']?.[0], quals['A']?.[1],
-    quals['D']?.[0], quals['C']?.[1],
-    quals['F']?.[0], quals['E']?.[1],
-    quals['H']?.[0], quals['G']?.[1],
-    quals['J']?.[0], quals['I']?.[1],
-    quals['L']?.[0], quals['K']?.[1],
-  ].filter(Boolean);
+    return [];
+  }, [matches, standings]);
 
   // Organiza matches por fase
   const matchesByPhase = {};
