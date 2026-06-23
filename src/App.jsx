@@ -1958,7 +1958,6 @@ function MatchInfo({ m, savedRes }) {
 
 /* ============================ Bracket Overlay ============================ */
 function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false, t = {} }) {
-  const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
   const [standings, setStandings] = useState(null);
   useEffect(() => {
     fetchStandings().then(setStandings).catch(() => {});
@@ -1968,15 +1967,12 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   const seed32 = useMemo(() => {
     const matches32 = matches.filter(m => m.phase === '32 avos de final');
     if (matches32.length > 0) {
-      // Se tem matches de 32 avos, usa eles
       const teams = [];
       matches32.forEach(m => {
         teams.push(m.home, m.away);
       });
       return teams;
     }
-
-    // Fallback: tenta pegar de standings
     if (standings?.groups) {
       const quals = {};
       for (const g of standings.groups) {
@@ -1997,38 +1993,49 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
         quals['L']?.[0], quals['K']?.[1],
       ].filter(Boolean);
     }
-
     return [];
   }, [matches, standings]);
 
-  // Organiza matches por fase
-  const matchesByPhase = {};
-  for (const m of matches.filter(m => PHASES_KO.includes(m.phase))) {
-    if (!matchesByPhase[m.phase]) matchesByPhase[m.phase] = [];
-    matchesByPhase[m.phase].push(m);
-  }
-
-  // Constrói bracket tree a partir dos resultados
-  const buildBracketTree = () => {
-    const tree = { '32 avos de final': [] };
-
-    // 32 avos: emparejar times do seed
-    for (let i = 0; i < seed32.length; i += 2) {
-      const match32 = matchesByPhase['32 avos de final']?.find(m =>
-        (m.home === seed32[i] && m.away === seed32[i+1]) ||
-        (m.home === seed32[i+1] && m.away === seed32[i])
-      );
-      tree['32 avos de final'].push({
-        home: seed32[i],
-        away: seed32[i+1],
-        result: match32 ? results[match32.id] : null,
-      });
+  // Mapeia matches por fase
+  const matchesByPhase = useMemo(() => {
+    const mp = {};
+    for (const m of matches.filter(m => PHASES_KO.includes(m.phase))) {
+      if (!mp[m.phase]) mp[m.phase] = [];
+      mp[m.phase].push(m);
     }
+    return mp;
+  }, [matches]);
 
-    return tree;
+  // Componente reutilizável de team pill no bracket
+  const TeamPill = ({ team, isWinner, size = 52 }) => {
+    const flag = team && FLAG_CODES[team];
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: '50%',
+        border: `2px solid ${isWinner ? t.gold : t.cardBorder}`,
+        display: 'grid', placeItems: 'center',
+        background: team ? (isWinner ? `${t.gold}22` : 'transparent') : 'rgba(255,255,255,.05)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {team && flag ? (
+          <img src={`https://flagcdn.com/w80/${flag}.png`} alt={team} style={{
+            width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
+          }} />
+        ) : team ? (
+          <span style={{ fontSize: 18, color: t.sub }}>?</span>
+        ) : (
+          <span style={{ fontSize: 12, color: t.sub }}>–</span>
+        )}
+        {isWinner && (
+          <div style={{
+            position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
+            background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
+            fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
+          }}>✓</div>
+        )}
+      </div>
+    );
   };
-
-  const bracketTree = buildBracketTree();
 
   return (
     <div onClick={onClose} style={{
@@ -2037,177 +2044,153 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         position: 'relative', background: t.cardBg || 'linear-gradient(180deg,#10182b,#0a0e1a)', borderRadius: 18,
-        padding: 'clamp(20px,5vw,40px)', border: `1px solid ${t.cardBorder}`, maxWidth: 1200, maxHeight: '90vh',
-        overflowX: 'auto',
+        padding: 'clamp(20px,4vw,32px)', border: `1px solid ${t.cardBorder}`, maxWidth: 1600, maxHeight: '90vh',
+        overflowX: 'auto', overflowY: 'auto',
       }}>
-        {/* Fechar */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.1)', border: 'none',
-            borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', color: t.text,
-          }}
-        >
-          ✕
-        </button>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.1)', border: 'none',
+          borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', color: t.text,
+        }}>✕</button>
 
-        <h2 style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 20, letterSpacing: '.16em', color: t.gold, margin: '0 0 20px', textAlign: 'center' }}>
+        <h2 style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 22, letterSpacing: '.16em', color: t.gold, margin: '0 0 28px', textAlign: 'center' }}>
           🏆 CHAVEAMENTO COPA 2026
         </h2>
 
-        {/* Bracket Grid - 32 Avos pré-montados */}
-        <div style={{ display: 'flex', gap: 'clamp(12px,3vw,20px)', overflowX: 'auto', padding: '10px 0' }}>
-          {/* 32 AVOS */}
-          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
-            <div style={{
-              fontFamily: 'Oswald', fontWeight: 600, fontSize: 11, letterSpacing: '.2em', color: t.gold,
-              textAlign: 'center', whiteSpace: 'nowrap',
-            }}>
-              32 AVOS
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(20px,5vw,40px)' }}>
-              {bracketTree['32 avos de final']?.map((match, mi) => {
-                const winner = match.result?.qualifier || (match.result?.home > match.result?.away ? 'home' : match.result?.away > match.result?.home ? 'away' : null);
-                const homeTeam = match.home;
-                const awayTeam = match.away;
-                const homeFlag = homeTeam && FLAG_CODES[homeTeam];
-                const awayFlag = awayTeam && FLAG_CODES[awayTeam];
+        {/* Tournament Bracket Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 'clamp(16px,4vw,32px)', padding: '0 8px' }}>
+
+          {/* 32 AVOS (16 matches) */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>32 AVOS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'space-around', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {Array.from({ length: 16 }).map((_, i) => {
+                const home = seed32[i * 2];
+                const away = seed32[i * 2 + 1];
+                const matches32 = matchesByPhase['32 avos de final'] || [];
+                const match32 = matches32.find(m => (m.home === home && m.away === away) || (m.home === away && m.away === home));
+                const res = match32 ? results[match32.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
 
                 return (
-                  <div key={mi} style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
-                    {/* Home */}
-                    <div style={{
-                      width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'home' ? t.gold : t.cardBorder}`,
-                      display: 'grid', placeItems: 'center', background: homeTeam ? (winner === 'home' ? `${t.gold}22` : 'transparent') : 'rgba(255,255,255,.05)',
-                      position: 'relative',
-                    }}>
-                      {homeTeam && homeFlag ? (
-                        <img src={`https://flagcdn.com/w80/${homeFlag}.png`} alt={homeTeam} style={{
-                          width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
-                        }} />
-                      ) : homeTeam ? (
-                        <span style={{ fontSize: 18 }}>?</span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: t.sub }}>–</span>
-                      )}
-                      {winner === 'home' && (
-                        <div style={{
-                          position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
-                          background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
-                          fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
-                        }}>✓</div>
-                      )}
-                    </div>
-
-                    {/* Away */}
-                    <div style={{
-                      width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'away' ? t.gold : t.cardBorder}`,
-                      display: 'grid', placeItems: 'center', background: awayTeam ? (winner === 'away' ? `${t.gold}22` : 'transparent') : 'rgba(255,255,255,.05)',
-                      position: 'relative',
-                    }}>
-                      {awayTeam && awayFlag ? (
-                        <img src={`https://flagcdn.com/w80/${awayFlag}.png`} alt={awayTeam} style={{
-                          width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
-                        }} />
-                      ) : awayTeam ? (
-                        <span style={{ fontSize: 18 }}>?</span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: t.sub }}>–</span>
-                      )}
-                      {winner === 'away' && (
-                        <div style={{
-                          position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
-                          background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
-                          fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
-                        }}>✓</div>
-                      )}
-                    </div>
+                  <div key={`32-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                    <TeamPill team={home} isWinner={winner === 'home'} size={52} />
+                    <TeamPill team={away} isWinner={winner === 'away'} size={52} />
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* OITAVAS, QUARTAS, etc - só aparecem quando têm matches */}
-          {[
-            { label: 'OITAVAS', phase: 'Oitavas de final', count: 8 },
-            { label: 'QUARTAS', phase: 'Quartas de final', count: 4 },
-            { label: 'SEMIFINAL', phase: 'Semifinal', count: 2 },
-            { label: 'FINAL', phase: 'Final', count: 1 },
-          ].filter(r => matchesByPhase[r.phase]?.length > 0).map((round) => (
-            <div key={round.phase} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,16px)' }}>
-              <div style={{
-                fontFamily: 'Oswald', fontWeight: 600, fontSize: 11, letterSpacing: '.2em', color: t.gold,
-                textAlign: 'center', whiteSpace: 'nowrap',
-              }}>
-                {round.label}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(20px,5vw,40px)' }}>
-                {matchesByPhase[round.phase]?.map((match, mi) => {
-                  const res = results[match.id];
-                  const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
-                  const homeTeam = match.home;
-                  const awayTeam = match.away;
-                  const homeFlag = homeTeam && FLAG_CODES[homeTeam];
-                  const awayFlag = awayTeam && FLAG_CODES[awayTeam];
+          {/* OITAVAS (8 matches) */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>OITAVAS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', justifyContent: 'space-around', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {Array.from({ length: 8 }).map((_, i) => {
+                const round = matchesByPhase['Oitavas de final'] || [];
+                const match = round[i];
+                const res = match ? results[match.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
 
-                  return (
-                    <div key={match.id} style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'home' ? t.gold : t.cardBorder}`,
-                        display: 'grid', placeItems: 'center', background: homeTeam ? (winner === 'home' ? `${t.gold}22` : 'transparent') : 'rgba(255,255,255,.05)',
-                        position: 'relative',
-                      }}>
-                        {homeTeam && homeFlag ? (
-                          <img src={`https://flagcdn.com/w80/${homeFlag}.png`} alt={homeTeam} style={{
-                            width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
-                          }} />
-                        ) : homeTeam ? (
-                          <span style={{ fontSize: 18 }}>?</span>
-                        ) : (
-                          <span style={{ fontSize: 12, color: t.sub }}>–</span>
-                        )}
-                        {winner === 'home' && (
-                          <div style={{
-                            position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
-                            background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
-                            fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
-                          }}>✓</div>
-                        )}
-                      </div>
-
-                      <div style={{
-                        width: 52, height: 52, borderRadius: '50%', border: `2px solid ${winner === 'away' ? t.gold : t.cardBorder}`,
-                        display: 'grid', placeItems: 'center', background: awayTeam ? (winner === 'away' ? `${t.gold}22` : 'transparent') : 'rgba(255,255,255,.05)',
-                        position: 'relative',
-                      }}>
-                        {awayTeam && awayFlag ? (
-                          <img src={`https://flagcdn.com/w80/${awayFlag}.png`} alt={awayTeam} style={{
-                            width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover',
-                          }} />
-                        ) : awayTeam ? (
-                          <span style={{ fontSize: 18 }}>?</span>
-                        ) : (
-                          <span style={{ fontSize: 12, color: t.sub }}>–</span>
-                        )}
-                        {winner === 'away' && (
-                          <div style={{
-                            position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%',
-                            background: t.gold, color: '#1a1206', display: 'grid', placeItems: 'center',
-                            fontWeight: 900, fontSize: 11, boxShadow: `0 2px 8px ${t.gold}66`,
-                          }}>✓</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                return (
+                  <div key={`8-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                    <TeamPill team={match?.home} isWinner={winner === 'home'} size={52} />
+                    <TeamPill team={match?.away} isWinner={winner === 'away'} size={52} />
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
+
+          {/* QUARTAS (4 matches) */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>QUARTAS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '80px', justifyContent: 'space-around', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const round = matchesByPhase['Quartas de final'] || [];
+                const match = round[i];
+                const res = match ? results[match.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+
+                return (
+                  <div key={`4-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                    <TeamPill team={match?.home} isWinner={winner === 'home'} size={52} />
+                    <TeamPill team={match?.away} isWinner={winner === 'away'} size={52} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SEMIFINAL (2 matches) */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>SEMIFINAL</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '160px', justifyContent: 'space-around', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {Array.from({ length: 2 }).map((_, i) => {
+                const round = matchesByPhase['Semifinal'] || [];
+                const match = round[i];
+                const res = match ? results[match.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+
+                return (
+                  <div key={`2-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                    <TeamPill team={match?.home} isWinner={winner === 'home'} size={52} />
+                    <TeamPill team={match?.away} isWinner={winner === 'away'} size={52} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* FINAL */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>FINAL</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {(() => {
+                const round = matchesByPhase['Final'] || [];
+                const match = round[0];
+                const res = match ? results[match.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+
+                return (
+                  <>
+                    <TeamPill team={match?.home} isWinner={winner === 'home'} size={52} />
+                    <div style={{ textAlign: 'center', fontSize: 11, color: t.sub, fontFamily: 'Oswald', fontWeight: 600, letterSpacing: '.1em' }}>VS</div>
+                    <TeamPill team={match?.away} isWinner={winner === 'away'} size={52} />
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* CAMPEÃO */}
+          <div>
+            <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 12, letterSpacing: '.2em', color: t.gold, textAlign: 'center', marginBottom: 12, whiteSpace: 'nowrap' }}>CAMPEÃO</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center', alignItems: 'center', minHeight: 'calc(16 * 72px + 15 * 20px)' }}>
+              {(() => {
+                const round = matchesByPhase['Final'] || [];
+                const match = round[0];
+                const res = match ? results[match.id] : null;
+                const winner = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+                const championTeam = winner === 'home' ? match?.home : winner === 'away' ? match?.away : null;
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                    {championTeam && (
+                      <>
+                        <TeamPill team={championTeam} isWinner={true} size={64} />
+                        <div style={{ fontSize: 11, color: t.gold, fontFamily: 'Oswald', fontWeight: 700, letterSpacing: '.1em', textAlign: 'center' }}>🏆 BICAMPEÃO</div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
         </div>
 
         <div style={{
-          marginTop: 16, fontSize: 12, color: t.sub, textAlign: 'center', fontFamily: 'Barlow Semi Condensed',
+          marginTop: 24, fontSize: 12, color: t.sub, textAlign: 'center', fontFamily: 'Barlow Semi Condensed',
         }}>Clique fora para fechar</div>
       </div>
     </div>
