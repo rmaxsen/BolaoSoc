@@ -415,7 +415,15 @@ function useLiveScores(matches, me, rpcFn) {
 
 /* ============================================================ CSS ============================================================ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap');
+@keyframes mm-cardIn{0%{transform:translateY(22px) scale(.985)}100%{transform:none}}
+@keyframes mm-rise{0%{transform:translateY(12px)}100%{transform:none}}
+@keyframes mm-rise2{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes mm-glow{0%,100%{opacity:.32;transform:translate(-50%,-50%) scale(.82)}50%{opacity:.78;transform:translate(-50%,-50%) scale(1.18)}}
+@keyframes mm-ring{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes mm-pulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.05)}}
+@keyframes mm-seam{0%{opacity:.25}50%{opacity:.9}100%{opacity:.25}}
+@keyframes mm-badge{0%{transform:translate(-50%,-5px) scale(.82)}60%{transform:translate(-50%,0) scale(1.06)}100%{transform:translate(-50%,0)}}
 :root{--campo:#0B2A1C;--campo2:#0E3322;--cal:#F4F0E4;--papel:#FBF8EF;--tinta:#15241C;--canarinho:#FFC629;--bandeira:#1E9E55;--royal:#2447C5;--apito:#D7263D;--cinza:#6E7A70;--board:#0d1f14;}
 [data-theme="dark"]{--campo:#0a0f1f;--campo2:#0d1428;--papel:#0d1428;--tinta:#e8e4d8;--cinza:#8a96b0;--board:#060d1a}
 [data-theme="dark"] .bl-card{border-color:#1e2d50}
@@ -1288,7 +1296,7 @@ export default function App() {
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
-            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} matches={matches} results={results} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
@@ -1948,8 +1956,329 @@ function MatchInfo({ m, savedRes }) {
   );
 }
 
+/* ============================ Knockout Showcase (Cinema) ============================ */
+function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false }) {
+  const [idx, setIdx] = useState(0);
+  const koMatches = useMemo(() => matches.filter((m) => PHASES_KO.includes(m.phase)), [matches]);
+  if (koMatches.length === 0) return null;
+
+  const m = koMatches[idx];
+  const res = results[m.id];
+  const d = draft[m.id] || {};
+  const pick = d.qualifier ?? myPicks[m.id]?.qualifier ?? null;
+
+  const scoreA = d.h ?? myPicks[m.id]?.home ?? '';
+  const scoreB = d.a ?? myPicks[m.id]?.away ?? '';
+  const penA = d.penH ?? '';
+  const penB = d.penA ?? '';
+
+  const na = scoreA !== '' ? parseInt(scoreA) : null;
+  const nb = scoreB !== '' ? parseInt(scoreB) : null;
+  const bothScore = na !== null && nb !== null;
+  const draw = bothScore && na === nb;
+  const pa = penA !== '' ? parseInt(penA) : null;
+  const pb = penB !== '' ? parseInt(penB) : null;
+  const bothPen = pa !== null && pb !== null;
+
+  let winner = pick;
+  if (!winner) {
+    if (bothScore && !draw) winner = na > nb ? 'home' : 'away';
+    else if (draw && bothPen && pa !== pb) winner = pa > pb ? 'home' : 'away';
+  }
+
+  const t = darkMode ? {
+    pageBg: 'radial-gradient(1200px 620px at 50% -8%,#16203a 0%,#090d18 58%,#05070e 100%)',
+    cardBg: 'linear-gradient(180deg,#10182b,#0a0e1a)',
+    footBg: 'linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.35))',
+    text: '#f4f7fc', sub: 'rgba(244,247,252,.55)',
+    cardBorder: 'rgba(255,255,255,.10)', innerTop: 'rgba(255,255,255,.06)',
+    slabBg: 'rgba(255,255,255,.06)', slabBorder: 'rgba(255,255,255,.14)',
+    topGlow: 'rgba(120,150,220,.14)',
+    gold: '#e7c66b', goldSoft: 'rgba(231,198,107,.28)',
+    phaseBg: 'rgba(231,198,107,.07)', phaseBorder: 'rgba(231,198,107,.28)', phaseShadow: 'rgba(0,0,0,.4)',
+    tintAlpha: 0.62, tintAlpha2: 0.12,
+  } : {
+    pageBg: 'radial-gradient(1200px 620px at 50% -8%,#ffffff 0%,#e8edf6 60%,#dfe5f0 100%)',
+    cardBg: 'linear-gradient(180deg,#ffffff,#eef2f9)',
+    footBg: 'linear-gradient(180deg,rgba(0,0,0,0),rgba(20,30,55,.04))',
+    text: '#0e1626', sub: 'rgba(14,22,38,.55)',
+    cardBorder: 'rgba(14,22,38,.12)', innerTop: 'rgba(255,255,255,.8)',
+    slabBg: 'rgba(14,22,38,.045)', slabBorder: 'rgba(14,22,38,.16)',
+    topGlow: 'rgba(120,150,220,.1)',
+    gold: '#b07e1f', goldSoft: 'rgba(176,126,31,.25)',
+    phaseBg: 'rgba(176,126,31,.08)', phaseBorder: 'rgba(176,126,31,.3)', phaseShadow: 'rgba(120,90,20,.12)',
+    tintAlpha: 0.4, tintAlpha2: 0.09,
+  };
+
+  const rgba = (hex, a) => {
+    const h = hex.replace('#', '');
+    const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  };
+
+  const homeColor = TEAM_COLORS[m.home] || '#FFB81C';
+  const awayColor = TEAM_COLORS[m.away] || '#FFB81C';
+  const tintA = `linear-gradient(100deg,${rgba(homeColor, t.tintAlpha)} 0%,${rgba(homeColor, t.tintAlpha2)} 46%,rgba(0,0,0,0) 64%)`;
+  const tintB = `linear-gradient(260deg,${rgba(awayColor, t.tintAlpha)} 0%,${rgba(awayColor, t.tintAlpha2)} 46%,rgba(0,0,0,0) 64%)`;
+
+  const dim = (side) => winner && winner !== side;
+  const flagUrl = (team) => `https://flagcdn.com/w160/${FLAG_CODES[team]}.png`;
+
+  let statusText = 'Aguardando resultado';
+  if (winner) statusText = `${winner === 'home' ? m.home : m.away} avança para a próxima fase`;
+  else if (draw) statusText = 'Empate — defina os pênaltis';
+  else if (bothScore) statusText = 'Resultado registrado';
+
+  return (
+    <div style={{
+      minHeight: '100vh', width: '100%', background: t.pageBg, fontFamily: 'Barlow,sans-serif',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'clamp(20px,5vw,52px) 18px 60px',
+      transition: 'background .4s ease',
+    }}>
+      <div style={{ width: '100%', maxWidth: 760, marginBottom: 'clamp(18px,4vw,30px)', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(24px,5vw,28px)', letterSpacing: '.16em', color: t.text, margin: 0, marginBottom: 4 }}>MATA-MATA</h1>
+        <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 11, letterSpacing: '.22em', color: t.gold }}>COPA 2026</div>
+      </div>
+
+      <div style={{
+        width: '100%', maxWidth: 760, display: 'flex', alignItems: 'center', gap: 14, marginBottom: 'clamp(16px,3.5vw,26px)',
+        animation: 'mm-rise .55s ease both',
+      }}>
+        <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg,transparent,${t.cardBorder})` }}></div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 11, padding: '9px 20px', borderRadius: 999, border: `1px solid ${t.phaseBorder}`,
+          background: t.phaseBg, boxShadow: `0 6px 24px ${t.phaseShadow}}`,
+        }}>
+          <span style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,16px)', letterSpacing: '.24em', color: t.gold }}>
+            ◆ {m.phase.toUpperCase()} ◆
+          </span>
+        </div>
+        <div style={{ flex: 1, height: 1, background: `linear-gradient(270deg,transparent,${t.cardBorder})` }}></div>
+      </div>
+
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: 760, borderRadius: 22, overflow: 'hidden', border: `1px solid ${t.cardBorder}`,
+        background: t.cardBg, boxShadow: '0 30px 70px -28px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.06)',
+        animation: 'mm-cardIn .7s cubic-bezier(.2,.7,.25,1) both',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: tintA, clipPath: 'polygon(0 0,66% 0,50% 100%,0 100%)' }}></div>
+        <div style={{ position: 'absolute', inset: 0, background: tintB, clipPath: 'polygon(34% 0,100% 0,100% 100%,50% 100%)' }}></div>
+        <div style={{
+          position: 'absolute', inset: 0, background: `radial-gradient(120% 90% at 50% -20%,${t.topGlow},transparent 60%)`,
+          pointerEvents: 'none',
+        }}></div>
+        <div style={{
+          position: 'absolute', left: '50%', top: '-8%', height: '116%', width: 2, transform: 'translateX(-50%) skewX(-11deg)',
+          background: `linear-gradient(180deg,transparent,${t.gold},transparent)`, boxShadow: `0 0 18px ${t.gold}`, opacity: .5,
+          animation: 'mm-seam 3s ease-in-out infinite',
+        }}></div>
+
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: 'clamp(26px,5vw,40px) clamp(14px,3vw,26px) clamp(22px,4vw,32px)' }}>
+          {/* Team A */}
+          <div onClick={() => setDraftScore(m.id, 'qualifier', dim('home') ? null : 'home')} style={{
+            flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(10px,2vw,14px)',
+            cursor: 'pointer', opacity: dim('home') ? 0.45 : 1, filter: dim('home') ? 'grayscale(.5) saturate(.7)' : 'none',
+            transition: 'opacity .4s ease,filter .4s ease',
+          }}>
+            <div style={{ position: 'relative', width: 'clamp(70px,18vw,104px)', height: 'clamp(70px,18vw,104px)', display: 'grid', placeItems: 'center' }}>
+              <div style={{
+                position: 'absolute', left: '50%', top: '50%', width: '150%', height: '150%', borderRadius: '50%',
+                color: homeColor, background: `radial-gradient(circle,currentColor 0%,transparent 68%)`,
+                animation: 'mm-glow 2.6s ease-in-out infinite',
+              }}></div>
+              <div style={{
+                position: 'relative', width: 'clamp(64px,16vw,92px)', aspectRatio: '3/2', borderRadius: 7,
+                backgroundImage: `url("${flagUrl(m.home)}")`, backgroundSize: 'cover', backgroundPosition: 'center',
+                boxShadow: '0 8px 22px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.18)',
+              }}></div>
+              {winner === 'home' && (
+                <div style={{
+                  position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', padding: '3px 10px',
+                  borderRadius: 6, background: `linear-gradient(150deg,#f2d889,#caa040)`, color: '#1a1206',
+                  fontFamily: 'Oswald', fontWeight: 700, fontSize: 11, letterSpacing: '.12em',
+                  boxShadow: '0 6px 16px rgba(202,160,64,.5)', whiteSpace: 'nowrap',
+                  animation: 'mm-badge .45s ease both',
+                }}>AVANÇA</div>
+              )}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(16px,4vw,24px)', letterSpacing: '.04em', lineHeight: 1.05, color: t.text }}>
+                {m.home}
+              </div>
+              <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 12, letterSpacing: '.3em', color: homeColor }}>
+                {m.home.substring(0, 3).toUpperCase()}
+              </div>
+            </div>
+            <input
+              type="text" inputMode="numeric" placeholder="0" value={scoreA}
+              onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, '').slice(0, 2))}
+              style={{
+                width: 'clamp(62px,16vw,86px)', height: 'clamp(58px,14vw,78px)', textAlign: 'center', borderRadius: 14,
+                border: `1px solid ${t.slabBorder}`, background: t.slabBg, backdropFilter: 'blur(6px)', color: t.text,
+                fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(34px,9vw,52px)', outline: 'none',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,.25)', transition: 'border-color .2s,box-shadow .2s',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`; }}
+              onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
+            />
+            {draw && (
+              <input
+                type="text" inputMode="numeric" placeholder="–" value={penA}
+                onChange={(e) => setDraftScore(m.id, 'penH', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                style={{
+                  width: 48, height: 30, textAlign: 'center', borderRadius: 8, border: `1px dashed ${t.slabBorder}`,
+                  background: 'transparent', color: t.sub, fontFamily: 'Oswald', fontWeight: 600, fontSize: 15, outline: 'none',
+                  opacity: draw ? 1 : 0, transition: 'opacity .3s ease',
+                }}
+              />
+            )}
+          </div>
+
+          {/* VS Coin */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 14,
+            paddingTop: 'clamp(6px,2vw,16px)', flex: '0 0 auto',
+          }}>
+            <div style={{
+              position: 'relative', width: 'clamp(64px,15vw,88px)', height: 'clamp(64px,15vw,88px)',
+              display: 'grid', placeItems: 'center',
+            }}>
+              <div style={{
+                position: 'absolute', inset: '-15%', borderRadius: '50%', border: `2px dashed ${t.goldSoft}`,
+                animation: 'mm-ring 14s linear infinite',
+              }}></div>
+              <div style={{
+                position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                background: 'radial-gradient(circle at 36% 30%,#ffe9a8,#d4a13a 56%,#9a6c1d)',
+                boxShadow: '0 10px 30px rgba(202,160,64,.5),inset 0 2px 6px rgba(255,255,255,.5),inset 0 -6px 12px rgba(120,80,10,.5)',
+                animation: 'mm-pulse 2.8s ease-in-out infinite',
+              }}></div>
+              <span style={{
+                position: 'relative', fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)',
+                letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)',
+              }}>VS</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{
+                fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 'clamp(11px,3vw,13px)',
+                letterSpacing: '.18em', color: t.text,
+              }}>{fmtTime(m.kickoff).split(' ')[0].toUpperCase()}</div>
+              <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,15px)', letterSpacing: '.14em', color: t.gold }}>
+                {fmtTime(m.kickoff).split(' ')[1]}
+              </div>
+            </div>
+            {draw && <div style={{
+              fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.2em',
+              color: t.sub, textAlign: 'center', height: 14,
+            }}>PÊNALTIS</div>}
+          </div>
+
+          {/* Team B */}
+          <div onClick={() => setDraftScore(m.id, 'qualifier', dim('away') ? null : 'away')} style={{
+            flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(10px,2vw,14px)',
+            cursor: 'pointer', opacity: dim('away') ? 0.45 : 1, filter: dim('away') ? 'grayscale(.5) saturate(.7)' : 'none',
+            transition: 'opacity .4s ease,filter .4s ease',
+          }}>
+            <div style={{ position: 'relative', width: 'clamp(70px,18vw,104px)', height: 'clamp(70px,18vw,104px)', display: 'grid', placeItems: 'center' }}>
+              <div style={{
+                position: 'absolute', left: '50%', top: '50%', width: '150%', height: '150%', borderRadius: '50%',
+                color: awayColor, background: `radial-gradient(circle,currentColor 0%,transparent 68%)`,
+                animation: 'mm-glow 2.6s ease-in-out infinite .4s',
+              }}></div>
+              <div style={{
+                position: 'relative', width: 'clamp(64px,16vw,92px)', aspectRatio: '3/2', borderRadius: 7,
+                backgroundImage: `url("${flagUrl(m.away)}")`, backgroundSize: 'cover', backgroundPosition: 'center',
+                boxShadow: '0 8px 22px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.18)',
+              }}></div>
+              {winner === 'away' && (
+                <div style={{
+                  position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', padding: '3px 10px',
+                  borderRadius: 6, background: `linear-gradient(150deg,#f2d889,#caa040)`, color: '#1a1206',
+                  fontFamily: 'Oswald', fontWeight: 700, fontSize: 11, letterSpacing: '.12em',
+                  boxShadow: '0 6px 16px rgba(202,160,64,.5)', whiteSpace: 'nowrap',
+                  animation: 'mm-badge .45s ease both',
+                }}>AVANÇA</div>
+              )}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(16px,4vw,24px)', letterSpacing: '.04em', lineHeight: 1.05, color: t.text }}>
+                {m.away}
+              </div>
+              <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 12, letterSpacing: '.3em', color: awayColor }}>
+                {m.away.substring(0, 3).toUpperCase()}
+              </div>
+            </div>
+            <input
+              type="text" inputMode="numeric" placeholder="0" value={scoreB}
+              onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, '').slice(0, 2))}
+              style={{
+                width: 'clamp(62px,16vw,86px)', height: 'clamp(58px,14vw,78px)', textAlign: 'center', borderRadius: 14,
+                border: `1px solid ${t.slabBorder}`, background: t.slabBg, backdropFilter: 'blur(6px)', color: t.text,
+                fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(34px,9vw,52px)', outline: 'none',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,.25)', transition: 'border-color .2s,box-shadow .2s',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`; }}
+              onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
+            />
+            {draw && (
+              <input
+                type="text" inputMode="numeric" placeholder="–" value={penB}
+                onChange={(e) => setDraftScore(m.id, 'penA', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                style={{
+                  width: 48, height: 30, textAlign: 'center', borderRadius: 8, border: `1px dashed ${t.slabBorder}`,
+                  background: 'transparent', color: t.sub, fontFamily: 'Oswald', fontWeight: 600, fontSize: 15, outline: 'none',
+                  opacity: draw ? 1 : 0, transition: 'opacity .3s ease',
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <div style={{
+          position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '13px 20px', borderTop: `1px solid ${t.cardBorder}`, background: t.footBg,
+        }}>
+          <span style={{
+            fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 12, letterSpacing: '.06em', color: t.sub,
+          }}>{statusText}</span>
+        </div>
+      </div>
+
+      <div style={{
+        width: '100%', maxWidth: 760, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginTop: 22, animation: 'mm-rise2 .6s ease both .1s',
+      }}>
+        <button
+          onClick={() => setIdx((i) => (i - 1 + koMatches.length) % koMatches.length)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', borderRadius: 11,
+            border: `1px solid ${t.cardBorder}`, background: t.slabBg, color: t.text, fontFamily: 'Barlow Semi Condensed',
+            fontWeight: 600, fontSize: 13, letterSpacing: '.08em', cursor: 'pointer',
+          }}>‹ ANTERIOR</button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontFamily: 'Oswald', fontWeight: 600, fontSize: 13, letterSpacing: '.16em', color: t.sub,
+          }}>CONFRONTO {idx + 1}/{koMatches.length}</div>
+        </div>
+        <button
+          onClick={() => setIdx((i) => (i + 1) % koMatches.length)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', borderRadius: 11,
+            border: `1px solid ${t.cardBorder}`, background: t.slabBg, color: t.text, fontFamily: 'Barlow Semi Condensed',
+            fontWeight: 600, fontSize: 13, letterSpacing: '.08em', cursor: 'pointer',
+          }}>PRÓXIMO ›</button>
+      </div>
+
+      <div style={{
+        fontFamily: 'Barlow Semi Condensed', fontWeight: 500, fontSize: 12, letterSpacing: '.04em', color: t.sub,
+        marginTop: 16, textAlign: 'center',
+      }}>Toque em um time para definir quem avança · informe o placar para ver o vencedor</div>
+    </div>
+  );
+}
+
 /* ============================ Tabela (standings da API) ============================ */
-function TabelaTab({ matches = [], results = {} }) {
+function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false }) {
   const [state, setState] = useState({ loading: true });
   const [groupsCollapsed, setGroupsCollapsed] = useState(false);
 
@@ -1977,9 +2306,11 @@ function TabelaTab({ matches = [], results = {} }) {
     return PHASES_KO.map((ph) => ({ phase: ph, items: grouped[ph] || [] })).filter((g) => g.items.length > 0);
   })();
 
+  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} />;
+
   return (
     <section aria-label="Tabela dos grupos">
-      {hasKO && (
+      {koByPhase.length > 0 && (
         <div style={{ marginTop: 18, marginBottom: 8 }}>
           <h2 className="bl-display" style={{ margin: '0 0 14px', fontSize: 22, color: 'var(--cal)' }}>🏆 Mata-mata</h2>
           {koByPhase.map(({ phase, items }) => (
