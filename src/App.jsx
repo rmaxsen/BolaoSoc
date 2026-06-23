@@ -1296,7 +1296,7 @@ export default function App() {
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
-            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} matches={matches} results={results} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
@@ -1957,7 +1957,7 @@ function MatchInfo({ m, savedRes }) {
 }
 
 /* ============================ Knockout Showcase (Cinema) ============================ */
-function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false }) {
+function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null }) {
   const [idx, setIdx] = useState(0);
   const koMatches = useMemo(() => matches.filter((m) => PHASES_KO.includes(m.phase)), [matches]);
   if (koMatches.length === 0) return null;
@@ -2148,15 +2148,16 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
                 animation: 'mm-ring 14s linear infinite',
               }}></div>
               <div style={{
-                position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                width: '100%', height: '100%', borderRadius: '50%',
                 background: 'radial-gradient(circle at 36% 30%,#ffe9a8,#d4a13a 56%,#9a6c1d)',
                 boxShadow: '0 10px 30px rgba(202,160,64,.5),inset 0 2px 6px rgba(255,255,255,.5),inset 0 -6px 12px rgba(120,80,10,.5)',
-                animation: 'mm-pulse 2.8s ease-in-out infinite',
-              }}></div>
-              <span style={{
-                position: 'relative', fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)',
-                letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)',
-              }}>VS</span>
+                display: 'grid', placeItems: 'center',
+              }}>
+                <span style={{
+                  fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)',
+                  letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)',
+                }}>VS</span>
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <div style={{
@@ -2269,6 +2270,77 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           }}>PRÓXIMO ›</button>
       </div>
 
+      {/* Save button */}
+      {draft[m.id] && (
+        <div style={{ width: '100%', maxWidth: 760, marginTop: 16 }}>
+          <button
+            disabled={busy}
+            onClick={savePicks}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: busy ? 'wait' : 'pointer',
+              background: `linear-gradient(150deg,#f2d889,#caa040)`, color: '#1a1206',
+              fontFamily: 'Oswald', fontWeight: 700, fontSize: 16, letterSpacing: '.1em',
+              boxShadow: '0 6px 20px rgba(202,160,64,.4)', transition: 'opacity .2s',
+              opacity: busy ? 0.7 : 1,
+            }}>
+            {busy ? 'SALVANDO…' : '⚽ SALVAR PALPITE'}
+          </button>
+        </div>
+      )}
+
+      {/* Picks table */}
+      <div style={{ width: '100%', maxWidth: 760, marginTop: 24 }}>
+        <div style={{
+          fontFamily: 'Oswald', fontWeight: 600, fontSize: 13, letterSpacing: '.18em', color: t.sub,
+          marginBottom: 10, textAlign: 'center',
+        }}>PALPITES DA GALERA</div>
+        <div style={{
+          background: t.slabBg, borderRadius: 14, border: `1px solid ${t.cardBorder}`, overflow: 'hidden',
+        }}>
+          {users.map((u, i) => {
+            const p = picksAll[u.slug]?.[m.id];
+            const myOwn = me?.slug === u.slug;
+            const pts = p && res ? points(p, res, true) : null;
+            return (
+              <div key={u.slug} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
+                borderBottom: i < users.length - 1 ? `1px solid ${t.cardBorder}` : 'none',
+                background: myOwn ? `${t.phaseBg}` : 'transparent',
+              }}>
+                <Avatar user={u} size={28} />
+                <span style={{ flex: 1, fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 14, color: t.text }}>
+                  {u.name}{myOwn && <span style={{ fontSize: 10, color: t.gold, marginLeft: 6 }}>você</span>}
+                </span>
+                {p ? (
+                  <>
+                    <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 15, color: t.text }}>
+                      {p.home ?? '–'} × {p.away ?? '–'}
+                    </span>
+                    {p.qualifier && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                        background: p.qualifier === 'home' ? `${TEAM_COLORS[m.home] || t.gold}33` : `${TEAM_COLORS[m.away] || t.gold}33`,
+                        color: p.qualifier === 'home' ? (TEAM_COLORS[m.home] || t.gold) : (TEAM_COLORS[m.away] || t.gold),
+                      }}>
+                        {p.qualifier === 'home' ? m.home : m.away}
+                      </span>
+                    )}
+                    {pts != null && (
+                      <span style={{
+                        fontFamily: 'Oswald', fontWeight: 900, fontSize: 13, minWidth: 28, textAlign: 'right',
+                        color: pts >= 3 ? '#f2d889' : pts > 0 ? t.text : t.sub,
+                      }}>{pts > 0 ? `+${pts}` : '0'}</span>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, color: t.sub, fontStyle: 'italic' }}>sem palpite</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div style={{
         fontFamily: 'Barlow Semi Condensed', fontWeight: 500, fontSize: 12, letterSpacing: '.04em', color: t.sub,
         marginTop: 16, textAlign: 'center',
@@ -2278,7 +2350,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 }
 
 /* ============================ Tabela (standings da API) ============================ */
-function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false }) {
+function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null }) {
   const [state, setState] = useState({ loading: true });
   const [groupsCollapsed, setGroupsCollapsed] = useState(false);
 
@@ -2306,7 +2378,7 @@ function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () 
     return PHASES_KO.map((ph) => ({ phase: ph, items: grouped[ph] || [] })).filter((g) => g.items.length > 0);
   })();
 
-  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} />;
+  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} />;
 
   return (
     <section aria-label="Tabela dos grupos">
