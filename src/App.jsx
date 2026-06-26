@@ -1979,6 +1979,18 @@ function MatchInfo({ m, savedRes }) {
   );
 }
 
+// Reverse lookup: English ESPN name → Portuguese app name (used in bracket + admin)
+const EN_PT = (() => {
+  const m = {};
+  Object.entries(TEAM_EN).forEach(([pt, ens]) => { ens.forEach(en => { m[norm(en)] = pt; }); });
+  return m;
+})();
+function toPtName(n) {
+  if (!n) return n;
+  if (FLAG_CODES[n]) return n;
+  return EN_PT[norm(n)] || n;
+}
+
 /* ============================ Bracket Overlay ============================ */
 function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false, t = {} }) {
   const [standings, setStandings] = useState(null);
@@ -2004,33 +2016,43 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
         else slotTeams[i] = seed.g ? (grp[seed.g]?.[seed.p-1] || null) : null;
       });
     }
-    // Augment with DB matches: for each 32avos slot pair, if standings slot is empty
-    // but a DB match has one of those teams, fill the slot (handles ESPN-synced names too)
+    // Augment: fill null slots from DB matches, but KEEP standings PT names (needed for flags)
     const m32 = matches.filter(m => m.phase === '32 avos de final');
     if (m32.length > 0) {
       const used = new Set();
-      const teq = (a, b) => { if (!a || !b) return false; if (a === b) return true; return matchesTeam(a, b) || matchesTeam(b, a); };
+      // teq: fuzzy match between a standings name (PT) and any team name
+      const teq = (slotName, dbName) => {
+        if (!slotName || !dbName) return false;
+        if (slotName === dbName) return true;
+        // slotName is PT, dbName could be PT or English
+        return matchesTeam(slotName, dbName) || matchesTeam(dbName, slotName);
+      };
       for (let s = 0; s < 16; s++) {
         const tA = slotTeams[s*2], tB = slotTeams[s*2+1];
-        // Find DB match that fits this slot (fuzzy name match)
         const m = m32.find(m => !used.has(m.id) && (
-          (teq(m.home, tA) || teq(m.away, tA) || teq(m.home, tB) || teq(m.away, tB)) ||
-          (!tA && !tB) // slot fully unknown — assign first unmatched
+          teq(tA, m.home) || teq(tA, m.away) || teq(tB, m.home) || teq(tB, m.away) ||
+          (!tA && !tB)
         ));
         if (m) {
           used.add(m.id);
-          // Determine orientation: home goes to slot A if it matches tA (or tA is unknown)
-          const homeIsA = tA ? teq(m.home, tA) : !teq(m.home, tB);
-          slotTeams[s*2]   = homeIsA ? m.home : m.away;
-          slotTeams[s*2+1] = homeIsA ? m.away : m.home;
+          // Only fill slots that standings couldn't resolve (null); keep PT names otherwise
+          if (!tA) {
+            // determine which DB team goes here based on the other slot
+            slotTeams[s*2] = (tB && teq(tB, m.home)) ? m.away : m.home;
+          }
+          if (!tB) {
+            slotTeams[s*2+1] = (slotTeams[s*2] === m.home) ? m.away : m.home;
+          }
         }
       }
-      // Any remaining unplaced matches fill first fully-null slot pairs
+      // Remaining unplaced matches → fill first fully-null slot pairs
       const unplaced = m32.filter(m => !used.has(m.id));
       let ni = 0;
       for (let s = 0; s < 16 && ni < unplaced.length; s++) {
         if (!slotTeams[s*2] && !slotTeams[s*2+1]) {
-          slotTeams[s*2] = unplaced[ni].home; slotTeams[s*2+1] = unplaced[ni].away; ni++;
+          slotTeams[s*2] = toPtName(unplaced[ni].home);
+          slotTeams[s*2+1] = toPtName(unplaced[ni].away);
+          ni++;
         }
       }
     }
@@ -3061,7 +3083,7 @@ function RankingTab({ ranking, liveRanking, meSlug, results, worldChampion, rank
   );
 }
 
-/* ============================ Admin ============================ */
+//* ============================ Admin ============================ */
 function AdminTab({ me, matches, results, users, now, worldChampion, liveScores = {}, onDone, onError, busy, setBusy }) {
   const started = matches.filter((m) => now >= new Date(m.kickoff).getTime() || results[m.id]);
   const [vals, setVals] = useState({});
@@ -3263,7 +3285,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
               <p className="sub" style={{ marginBottom: 8 }}><b>{koFound.length} jogo(s) novo(s) encontrado(s) na ESPN:</b></p>
               {koFound.map((f, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px dashed rgba(32,48,31,.2)' : 'none', fontSize: 13 }}>
-                  <span><b>{f.phase}</b> · <Flag team={f.homeName} size={16} /> {f.homeName} × {f.awayName} <Flag team={f.awayName} size={16} /><br/>
+                  <span><b>{f.phase}</b> · <Flag team={toPtName(f.homeName)} size={16} /> {toPtName(f.homeName)} × {toPtName(f.awayName)} <Flag team={toPtName(f.awayName)} size={16} /><br/>
                     <small style={{ color: 'var(--cinza)' }}>{f.kickoff ? new Date(f.kickoff).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : f.ds}</small>
                   </span>
                   <button className="bl-btn verde" style={{ fontSize: 12, padding: '5px 10px', whiteSpace: 'nowrap' }} disabled={busy}
@@ -3273,9 +3295,10 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
                       const dt2 = `${ko.getUTCFullYear()}-${pad2(ko.getUTCMonth()+1)}-${pad2(ko.getUTCDate())}`;
                       const hr2 = `${pad2(ko.getUTCHours())}:${pad2(ko.getUTCMinutes())}`;
                       run(async () => {
-                        await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: f.phase, p_home: f.homeName, p_away: f.awayName, p_kickoff: `${dt2}T${hr2}:00Z` });
+                        const ptHome = toPtName(f.homeName), ptAway = toPtName(f.awayName);
+                        await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: f.phase, p_home: ptHome, p_away: ptAway, p_kickoff: `${dt2}T${hr2}:00Z` });
                         setKoFound(prev => prev.filter((_,j) => j !== i));
-                      }, `${f.homeName} × ${f.awayName} adicionado ✅`);
+                      }, `${toPtName(f.homeName)} × ${toPtName(f.awayName)} adicionado ✅`);
                     }}>
                     + Adicionar
                   </button>
