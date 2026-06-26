@@ -3357,34 +3357,48 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
       <div className="bl-panel">
         <h2 className="bl-display">Iniciar Mata-Mata (Round of 32)</h2>
         <p className="sub">Calcula os 8 melhores terceiros, resolve confrontos da FIFA e cria as 16 partidas dos 32 avos. Execute quando os grupos encerrarem.</p>
-        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || matches.some(m => PHASES_KO.includes(m.phase))}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const standing = calcularClassificacaoGrupos(matches, results);
-              const topThirds = rankearTerceiros(standing);
-              const thirdGroups = topThirds.map(t => t.grp);
-              const confrontos = resolveRound32(thirdGroups);
-              const matchesToInsert = confrontos.map(c => {
-                const home = resolverTeamLabel(c.home, standing, topThirds);
-                const away = resolverTeamLabel(c.away, standing, topThirds);
-                return {
-                  id: `m${c.match}`, grp: null, home, away, kickoff: null, city: null,
-                  phase: '32 avos de final', is_seed: true,
-                };
-              });
-              for (const m of matchesToInsert) {
-                await rpc('add_match', { p_name: me.name, p_pin: me.pin, ...m });
-              }
-              await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
-            } catch (e) {
-              onError(`Erro ao iniciar: ${e.message}`);
-            } finally {
-              setBusy(false);
-            }
-          }}>
-          {busy ? '⏳ Iniciando…' : '🏆 Iniciar Mata-Mata'}
-        </button>
+        {(() => {
+          const groupMatches = matches.filter(m => m.phase === 'Grupos');
+          const withResult = groupMatches.filter(m => results[m.id]).length;
+          const total = groupMatches.length;
+          const allDone = total === 72 && withResult === 72;
+          const missing = total - withResult;
+          return (
+            <>
+              <div style={{ fontSize: 12, color: 'var(--cinza)', marginBottom: 12, textAlign: 'center' }}>
+                {allDone ? '✅ Todos os 72 jogos de grupo com resultado' : `⏳ ${missing} resultado${missing !== 1 ? 's' : ''} aguardando... (${withResult}/72)`}
+              </div>
+              <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !allDone || matches.some(m => PHASES_KO.includes(m.phase))}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const standing = calcularClassificacaoGrupos(matches, results);
+                    const topThirds = rankearTerceiros(standing);
+                    const thirdGroups = topThirds.map(t => t.grp);
+                    const confrontos = resolveRound32(thirdGroups);
+                    const matchesToInsert = confrontos.map(c => {
+                      const home = resolverTeamLabel(c.home, standing, topThirds);
+                      const away = resolverTeamLabel(c.away, standing, topThirds);
+                      return {
+                        id: `m${c.match}`, grp: null, home, away, kickoff: null, city: null,
+                        phase: '32 avos de final', is_seed: true,
+                      };
+                    });
+                    for (const m of matchesToInsert) {
+                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, ...m });
+                    }
+                    await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
+                  } catch (e) {
+                    onError(`Erro ao iniciar: ${e.message}`);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>
+                {busy ? '⏳ Iniciando…' : '🏆 Iniciar Mata-Mata'}
+              </button>
+            </>
+          );
+        })()}
       </div>
 
       <div className="bl-panel">
