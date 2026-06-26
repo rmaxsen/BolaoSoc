@@ -30,6 +30,29 @@ const FLAGS = {
 const flag = (t) => FLAGS[t] || '⚽';
 const PHASES_KO = ['32 avos de final', 'Oitavas de final', 'Quartas de final', 'Semifinal', '3º lugar', 'Final'];
 
+// Copa 2026 bracket seeding — 32 slots (par = confronto), baseado no chaveamento oficial FIFA
+// g=grupo, p=posição (1=1º,2=2º,3=melhor 3º), lbl=label para exibir no bracket vazio
+const COPA2026_SEEDS = [
+  // Lado esquerdo (8 confrontos, slots 0-15)
+  {lbl:'1E',g:'E',p:1},{lbl:'3º',p:3},
+  {lbl:'1I',g:'I',p:1},{lbl:'3º',p:3},
+  {lbl:'2A',g:'A',p:2},{lbl:'2B',g:'B',p:2},
+  {lbl:'1F',g:'F',p:1},{lbl:'2C',g:'C',p:2},
+  {lbl:'2K',g:'K',p:2},{lbl:'2L',g:'L',p:2},
+  {lbl:'1H',g:'H',p:1},{lbl:'2J',g:'J',p:2},
+  {lbl:'1D',g:'D',p:1},{lbl:'3º',p:3},
+  {lbl:'1G',g:'G',p:1},{lbl:'3º',p:3},
+  // Lado direito (8 confrontos, slots 16-31)
+  {lbl:'1C',g:'C',p:1},{lbl:'2F',g:'F',p:2},
+  {lbl:'2E',g:'E',p:2},{lbl:'2I',g:'I',p:2},
+  {lbl:'1A',g:'A',p:1},{lbl:'3º',p:3},
+  {lbl:'1L',g:'L',p:1},{lbl:'3º',p:3},
+  {lbl:'1J',g:'J',p:1},{lbl:'2H',g:'H',p:2},
+  {lbl:'2D',g:'D',p:2},{lbl:'2G',g:'G',p:2},
+  {lbl:'1B',g:'B',p:1},{lbl:'3º',p:3},
+  {lbl:'1K',g:'K',p:1},{lbl:'3º',p:3},
+];
+
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
 const FLAG_CODES = {
   'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr', 'Rep. Tcheca': 'cz',
@@ -1962,19 +1985,32 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   useEffect(() => { fetchStandings().then(setStandings).catch(() => {}); }, []);
 
   const seed32 = useMemo(() => {
+    // Prioridade: matches de 32 avos já cadastrados no BD
     const m32 = matches.filter(m => m.phase === '32 avos de final');
-    if (m32.length > 0) { const ts = []; m32.forEach(m => { ts.push(m.home, m.away); }); return ts; }
-    if (standings?.groups) {
-      const q = {};
-      for (const g of standings.groups) q[g.group] = g.rows.slice(0, 2).map(r => r.team);
-      return [
-        q['A']?.[0],q['B']?.[1],q['C']?.[0],q['D']?.[1],q['E']?.[0],q['F']?.[1],
-        q['G']?.[0],q['H']?.[1],q['I']?.[0],q['J']?.[1],q['K']?.[0],q['L']?.[1],
-        q['B']?.[0],q['A']?.[1],q['D']?.[0],q['C']?.[1],q['F']?.[0],q['E']?.[1],
-        q['H']?.[0],q['G']?.[1],q['J']?.[0],q['I']?.[1],q['L']?.[0],q['K']?.[1],
-      ].filter(Boolean);
+    if (m32.length > 0) {
+      const ts = []; m32.forEach(m => { ts.push(m.home, m.away); }); return ts;
     }
-    return [];
+    // Fallback: montar a partir do standings usando o chaveamento oficial Copa 2026
+    if (standings?.groups) {
+      const grp = {};
+      for (const g of standings.groups) {
+        const sorted = [...g.rows].sort((a, b) => (b.pts||0)-(a.pts||0) || (b.gd||0)-(a.gd||0) || (b.gf||0)-(a.gf||0));
+        grp[g.group] = sorted.map(r => r.team);
+      }
+      // Melhores 3os colocados (por pts, depois gd, depois gf)
+      const thirds = Object.entries(grp)
+        .filter(([,ts]) => ts.length >= 3)
+        .map(([g,ts]) => { const row = standings.groups.find(x=>x.group===g)?.rows.find(r=>r.team===ts[2]); return {team:ts[2],pts:row?.pts||0,gd:row?.gd||0,gf:row?.gf||0}; })
+        .sort((a,b) => b.pts-a.pts||b.gd-a.gd||b.gf-a.gf)
+        .map(x=>x.team);
+
+      let thirdIdx = 0;
+      return COPA2026_SEEDS.map(seed => {
+        if (seed.p === 3) return thirds[thirdIdx++] || null;
+        return seed.g ? (grp[seed.g]?.[seed.p-1] || null) : null;
+      });
+    }
+    return Array(32).fill(null);
   }, [matches, standings]);
 
   const mbp = useMemo(() => {
@@ -2019,28 +2055,28 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
     return {home:m.home, away:m.away, w};
   };
 
-  // SVG circle element
-  const svgCircle = (cx, cy, team, isW, id) => {
+  // SVG circle element — label é exibido quando team é null (ex: '1E', '2A', '3º')
+  const svgCircle = (cx, cy, team, isW, id, label) => {
     const flag = team && FLAG_CODES[team];
     const cid = `bpc${id}`;
     return (
       <g key={id}>
         <defs><clipPath id={cid}><circle cx={cx} cy={cy} r={R-2}/></clipPath></defs>
         <circle cx={cx} cy={cy} r={R-1}
-          fill={team?(isW?'rgba(231,198,107,.18)':'rgba(255,255,255,.07)'):'rgba(255,255,255,.04)'}
+          fill={team?(isW?'rgba(231,198,107,.18)':'rgba(255,255,255,.07)'):'rgba(255,255,255,.03)'}
           stroke={isW?gold:lc} strokeWidth={lw}/>
         {team&&flag&&<image href={`https://flagcdn.com/w80/${flag}.png`} x={cx-R+2} y={cy-R+2} width={C-4} height={C-4} clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid slice"/>}
         {team&&!flag&&<text x={cx} y={cy+4} textAnchor="middle" fill="rgba(255,255,255,.4)" fontSize="10">?</text>}
-        {!team&&<text x={cx} y={cy+4} textAnchor="middle" fill="rgba(255,255,255,.2)" fontSize="11">–</text>}
+        {!team&&<text x={cx} y={cy+4} textAnchor="middle" fill="rgba(255,255,255,.28)" fontSize="8" fontFamily="Oswald" fontWeight="600">{label||'–'}</text>}
         {isW&&<><circle cx={cx+R-5} cy={cy-R+5} r={7} fill={gold}/><text x={cx+R-5} y={cy-R+9} textAnchor="middle" fill="#1a1206" fontSize="8" fontWeight="bold">✓</text></>}
       </g>
     );
   };
 
-  // Render a match (2 circles)
-  const svgMatch = (cx, topY, home, away, winner, pfx) => [
-    svgCircle(cx, topY+R, home, winner==='home', `${pfx}h`),
-    svgCircle(cx, topY+C+IG+R, away, winner==='away', `${pfx}a`),
+  // Render a match (2 circles); seedSlot = base index in COPA2026_SEEDS (optional, for labels)
+  const svgMatch = (cx, topY, home, away, winner, pfx, seedSlot) => [
+    svgCircle(cx, topY+R, home, winner==='home', `${pfx}h`, seedSlot!=null ? COPA2026_SEEDS[seedSlot]?.lbl : null),
+    svgCircle(cx, topY+C+IG+R, away, winner==='away', `${pfx}a`, seedSlot!=null ? COPA2026_SEEDS[seedSlot+1]?.lbl : null),
   ];
 
   // Bracket connector lines: from prevRound to nextRound
@@ -2106,8 +2142,8 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
             )}
             <g transform="translate(0,20)">
               {allLines}
-              {/* Left 32avos */}
-              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(0,i); return svgMatch(XC[0],ty,home,away,w,`l1${i}`); })}
+              {/* Left 32avos — seed slots 0-15 */}
+              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(0,i); return svgMatch(XC[0],ty,home,away,w,`l1${i}`,i*2); })}
               {/* Left oitavas */}
               {Y2.map((ty,i)=>{ const {home,away,w}=getM('Oitavas de final',i); return svgMatch(XC[1],ty,home,away,w,`l2${i}`); })}
               {/* Left quartas */}
@@ -2122,8 +2158,8 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
               {Y3.map((ty,i)=>{ const {home,away,w}=getM('Quartas de final',2+i); return svgMatch(XC[6],ty,home,away,w,`r3${i}`); })}
               {/* Right oitavas */}
               {Y2.map((ty,i)=>{ const {home,away,w}=getM('Oitavas de final',4+i); return svgMatch(XC[7],ty,home,away,w,`r2${i}`); })}
-              {/* Right 32avos */}
-              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(1,i); return svgMatch(XC[8],ty,home,away,w,`r1${i}`); })}
+              {/* Right 32avos — seed slots 16-31 */}
+              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(1,i); return svgMatch(XC[8],ty,home,away,w,`r1${i}`,16+i*2); })}
             </g>
           </svg>
         </div>
@@ -2147,6 +2183,21 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
   const res = results[m.id];
   const d = draft[m.id] || {};
   const pick = d.qualifier ?? myPicks[m.id]?.qualifier ?? null;
+
+  // Janela de palpite: abre 24h antes, fecha 15min antes (igual fase de grupos)
+  const now = Date.now();
+  const locked = isLocked(m, now);
+  const inWindow = isOpenWindow(m, now);
+  const beforeWindow = now < openTime(m);
+  const canPick = inWindow && !res;
+
+  const fmtCountdown = (ms) => {
+    if (ms <= 0) return null;
+    const h = Math.floor(ms / 3600000), mn = Math.floor((ms % 3600000) / 60000);
+    return h > 0 ? `${h}h${mn > 0 ? mn + 'min' : ''}` : `${mn}min`;
+  };
+  const cdAbre = beforeWindow ? fmtCountdown(openTime(m) - now) : null;
+  const cdFecha = inWindow ? fmtCountdown(lockTime(m) - now) : null;
 
   const scoreA = d.h ?? myPicks[m.id]?.home ?? '';
   const scoreB = d.a ?? myPicks[m.id]?.away ?? '';
@@ -2272,9 +2323,9 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: 'clamp(26px,5vw,40px) clamp(14px,3vw,26px) clamp(22px,4vw,32px)' }}>
           {/* Team A */}
-          <div onClick={() => setDraftScore(m.id, 'qualifier', dim('home') ? null : 'home')} style={{
+          <div onClick={() => canPick && setDraftScore(m.id, 'qualifier', dim('home') ? null : 'home')} style={{
             flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(10px,2vw,14px)',
-            cursor: 'pointer', opacity: dim('home') ? 0.45 : 1, filter: dim('home') ? 'grayscale(.5) saturate(.7)' : 'none',
+            cursor: canPick ? 'pointer' : 'default', opacity: dim('home') ? 0.45 : 1, filter: dim('home') ? 'grayscale(.5) saturate(.7)' : 'none',
             transition: 'opacity .4s ease,filter .4s ease',
           }}>
             <div style={{ position: 'relative', width: 'clamp(70px,18vw,104px)', height: 'clamp(70px,18vw,104px)', display: 'grid', placeItems: 'center' }}>
@@ -2308,14 +2359,16 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
             </div>
             <input
               type="text" inputMode="numeric" placeholder="0" value={scoreA}
+              disabled={!canPick}
               onChange={(e) => setDraftScore(m.id, 'h', e.target.value.replace(/\D/g, '').slice(0, 2))}
               style={{
                 width: 'clamp(62px,16vw,86px)', height: 'clamp(58px,14vw,78px)', textAlign: 'center', borderRadius: 14,
                 border: `1px solid ${t.slabBorder}`, background: t.slabBg, backdropFilter: 'blur(6px)', color: t.text,
                 fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(34px,9vw,52px)', outline: 'none',
                 boxShadow: 'inset 0 2px 10px rgba(0,0,0,.25)', transition: 'border-color .2s,box-shadow .2s',
+                opacity: canPick ? 1 : 0.5, cursor: canPick ? 'text' : 'not-allowed',
               }}
-              onFocus={(e) => { e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`; }}
+              onFocus={(e) => { if(canPick){e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`;} }}
               onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
             />
             {draw && (
@@ -2372,9 +2425,9 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           </div>
 
           {/* Team B */}
-          <div onClick={() => setDraftScore(m.id, 'qualifier', dim('away') ? null : 'away')} style={{
+          <div onClick={() => canPick && setDraftScore(m.id, 'qualifier', dim('away') ? null : 'away')} style={{
             flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(10px,2vw,14px)',
-            cursor: 'pointer', opacity: dim('away') ? 0.45 : 1, filter: dim('away') ? 'grayscale(.5) saturate(.7)' : 'none',
+            cursor: canPick ? 'pointer' : 'default', opacity: dim('away') ? 0.45 : 1, filter: dim('away') ? 'grayscale(.5) saturate(.7)' : 'none',
             transition: 'opacity .4s ease,filter .4s ease',
           }}>
             <div style={{ position: 'relative', width: 'clamp(70px,18vw,104px)', height: 'clamp(70px,18vw,104px)', display: 'grid', placeItems: 'center' }}>
@@ -2408,14 +2461,16 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
             </div>
             <input
               type="text" inputMode="numeric" placeholder="0" value={scoreB}
+              disabled={!canPick}
               onChange={(e) => setDraftScore(m.id, 'a', e.target.value.replace(/\D/g, '').slice(0, 2))}
               style={{
                 width: 'clamp(62px,16vw,86px)', height: 'clamp(58px,14vw,78px)', textAlign: 'center', borderRadius: 14,
                 border: `1px solid ${t.slabBorder}`, background: t.slabBg, backdropFilter: 'blur(6px)', color: t.text,
                 fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(34px,9vw,52px)', outline: 'none',
                 boxShadow: 'inset 0 2px 10px rgba(0,0,0,.25)', transition: 'border-color .2s,box-shadow .2s',
+                opacity: canPick ? 1 : 0.5, cursor: canPick ? 'text' : 'not-allowed',
               }}
-              onFocus={(e) => { e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`; }}
+              onFocus={(e) => { if(canPick){e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`;} }}
               onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
             />
             {draw && (
@@ -2436,9 +2491,13 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: '13px 20px', borderTop: `1px solid ${t.cardBorder}`, background: t.footBg,
         }}>
-          <span style={{
-            fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 12, letterSpacing: '.06em', color: t.sub,
-          }}>{statusText}</span>
+          <span style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 12, letterSpacing: '.06em', color: t.sub }}>
+            {res ? statusText
+              : beforeWindow && cdAbre ? <>⏳ Palpite abre em <b>{cdAbre}</b></>
+              : inWindow && cdFecha ? <>🔓 Fecha em <b>{cdFecha}</b> · {statusText}</>
+              : locked ? '🔒 Palpites encerrados'
+              : statusText}
+          </span>
         </div>
       </div>
 
@@ -2467,8 +2526,8 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           }}>PRÓXIMO ›</button>
       </div>
 
-      {/* Save button */}
-      {draft[m.id] && (
+      {/* Save button — só mostra dentro da janela */}
+      {draft[m.id] && inWindow && (
         <div style={{ width: '100%', maxWidth: 760, marginTop: 16 }}>
           <button
             disabled={busy}
@@ -2985,6 +3044,8 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
   const [pinAlvo, setPinAlvo] = useState(''); const [pinNovo, setPinNovo] = useState('');
   // forçar palpite
   const [fpUser, setFpUser] = useState(''); const [fpMatch, setFpMatch] = useState('');
+  const [scanningKo, setScanningKo] = useState(false);
+  const [koFound, setKoFound] = useState([]);
   const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
 
   async function fetchEspnScore(m) {
@@ -3031,6 +3092,51 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
       await onDone(`ESPN: ${saved} resultado${saved !== 1 ? 's' : ''} salvo${saved !== 1 ? 's' : ''}${skipped ? `, ${skipped} não encontrado${skipped !== 1 ? 's' : ''}` : ''} ✅`);
     } catch (e) { onError('Erro ao sincronizar com a ESPN.'); }
     finally { setSyncing(false); }
+  }
+
+  // Busca jogos de mata-mata na ESPN (datas da Copa 2026 KO) e retorna os que não estão no BD
+  async function scanKoFromEspn() {
+    setScanningKo(true); setKoFound([]);
+    try {
+      const found = [];
+      // 32 avos: 29 jun a 2 jul; oitavas: 5-8 jul; quartas: 11-12 jul; semi: 15-16 jul; final: 19 jul
+      const dates = [];
+      for (let d = new Date('2026-06-29'); d <= new Date('2026-07-19'); d.setUTCDate(d.getUTCDate()+1))
+        dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+
+      const phaseByRound = {
+        'Round of 32':'32 avos de final','Round of 16':'Oitavas de final',
+        'Quarterfinals':'Quartas de final','Semifinals':'Semifinal',
+        'Third Place':'3º lugar','Final':'Final',
+      };
+
+      for (const ds of dates) {
+        const events = await espnScoreboard(ds).catch(()=>[]);
+        for (const ev of events) {
+          const comp = ev.competitions?.[0]; if (!comp) continue;
+          const home = comp.competitors?.find(c=>c.homeAway==='home');
+          const away = comp.competitors?.find(c=>c.homeAway==='away');
+          if (!home || !away) continue;
+          const homeName = home.team?.displayName || home.team?.name || '';
+          const awayName = away.team?.displayName || away.team?.name || '';
+          const round = ev.notes?.[0]?.headline || comp.notes?.[0]?.headline || '';
+          const phase = phaseByRound[round] || '32 avos de final';
+          const kickoff = comp.startDate || ev.date;
+          // Verifica se já existe no BD
+          const alreadyIn = matches.some(m =>
+            PHASES_KO.includes(m.phase) &&
+            ((matchesTeam(homeName, m.home) && matchesTeam(awayName, m.away)) ||
+             (matchesTeam(homeName, m.away) && matchesTeam(awayName, m.home)))
+          );
+          if (!alreadyIn && homeName && awayName) {
+            found.push({ homeName, awayName, phase, kickoff, ds });
+          }
+        }
+      }
+      setKoFound(found);
+      if (found.length === 0) onDone('Nenhum jogo novo de mata-mata encontrado na ESPN.');
+    } catch(e) { onError('Erro ao buscar mata-mata na ESPN.'); }
+    finally { setScanningKo(false); }
   }
 
   // campeão oficial
@@ -3118,6 +3224,38 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
           }, 'Jogo do mata-mata adicionado ✅')}>
           Adicionar jogo
         </button>
+
+        <div style={{ marginTop: 12 }}>
+          <button className="bl-btn" style={{ width: '100%', background: 'var(--bandeira)', color: '#fff' }}
+            disabled={scanningKo || busy} onClick={scanKoFromEspn}>
+            {scanningKo ? '⏳ Buscando na ESPN…' : '📡 Buscar jogos mata-mata ESPN'}
+          </button>
+          {koFound.length > 0 && (
+            <div style={{ marginTop: 10, background: 'rgba(32,48,31,.06)', borderRadius: 8, padding: '10px 12px' }}>
+              <p className="sub" style={{ marginBottom: 8 }}><b>{koFound.length} jogo(s) novo(s) encontrado(s) na ESPN:</b></p>
+              {koFound.map((f, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px dashed rgba(32,48,31,.2)' : 'none', fontSize: 13 }}>
+                  <span><b>{f.phase}</b> · <Flag team={f.homeName} size={16} /> {f.homeName} × {f.awayName} <Flag team={f.awayName} size={16} /><br/>
+                    <small style={{ color: 'var(--cinza)' }}>{f.kickoff ? new Date(f.kickoff).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : f.ds}</small>
+                  </span>
+                  <button className="bl-btn verde" style={{ fontSize: 12, padding: '5px 10px', whiteSpace: 'nowrap' }} disabled={busy}
+                    onClick={() => {
+                      const ko = new Date(f.kickoff);
+                      const pad2 = n => String(n).padStart(2,'0');
+                      const dt2 = `${ko.getUTCFullYear()}-${pad2(ko.getUTCMonth()+1)}-${pad2(ko.getUTCDate())}`;
+                      const hr2 = `${pad2(ko.getUTCHours())}:${pad2(ko.getUTCMinutes())}`;
+                      run(async () => {
+                        await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: f.phase, p_home: f.homeName, p_away: f.awayName, p_kickoff: `${dt2}T${hr2}:00Z` });
+                        setKoFound(prev => prev.filter((_,j) => j !== i));
+                      }, `${f.homeName} × ${f.awayName} adicionado ✅`);
+                    }}>
+                    + Adicionar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {matches.filter((x) => !x.is_seed).length > 0 && (
           <div style={{ marginTop: 16 }}>
