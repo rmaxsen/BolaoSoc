@@ -30,27 +30,28 @@ const FLAGS = {
 const flag = (t) => FLAGS[t] || '⚽';
 const PHASES_KO = ['32 avos de final', 'Oitavas de final', 'Quartas de final', 'Semifinal', '3º lugar', 'Final'];
 
-// Copa 2026 bracket seeding — 32 slots (par = confronto), baseado no chaveamento oficial FIFA
-// g=grupo, p=posição (1=1º,2=2º,3=melhor 3º), lbl=label para exibir no bracket vazio
+// Copa 2026 bracket seeding — chaveamento oficial FIFA (verificado em junho/2026)
+// Lado esquerdo → Semifinal 1 (Dallas 14/jul); Lado direito → Semifinal 2 (Atlanta 15/jul)
+// g=grupo, p=posição (1=1º,2=2º,3=melhor 3º), lbl=label exibido no bracket quando slot vazio
 const COPA2026_SEEDS = [
-  // Lado esquerdo (8 confrontos, slots 0-15)
-  {lbl:'1E',g:'E',p:1},{lbl:'3º',p:3},
-  {lbl:'1I',g:'I',p:1},{lbl:'3º',p:3},
-  {lbl:'2A',g:'A',p:2},{lbl:'2B',g:'B',p:2},
-  {lbl:'1F',g:'F',p:1},{lbl:'2C',g:'C',p:2},
-  {lbl:'2K',g:'K',p:2},{lbl:'2L',g:'L',p:2},
-  {lbl:'1H',g:'H',p:1},{lbl:'2J',g:'J',p:2},
-  {lbl:'1D',g:'D',p:1},{lbl:'3º',p:3},
-  {lbl:'1G',g:'G',p:1},{lbl:'3º',p:3},
-  // Lado direito (8 confrontos, slots 16-31)
-  {lbl:'1C',g:'C',p:1},{lbl:'2F',g:'F',p:2},
-  {lbl:'2E',g:'E',p:2},{lbl:'2I',g:'I',p:2},
-  {lbl:'1A',g:'A',p:1},{lbl:'3º',p:3},
-  {lbl:'1L',g:'L',p:1},{lbl:'3º',p:3},
-  {lbl:'1J',g:'J',p:1},{lbl:'2H',g:'H',p:2},
-  {lbl:'2D',g:'D',p:2},{lbl:'2G',g:'G',p:2},
-  {lbl:'1B',g:'B',p:1},{lbl:'3º',p:3},
-  {lbl:'1K',g:'K',p:1},{lbl:'3º',p:3},
+  // Lado esquerdo — 8 confrontos (slots 0-15)
+  {lbl:'2A',g:'A',p:2},{lbl:'2B',g:'B',p:2},   // M73: 2A vs 2B  (África do Sul × Canadá)
+  {lbl:'1C',g:'C',p:1},{lbl:'2F',g:'F',p:2},   // M74: 1C vs 2F  (Brasil × Japão)
+  {lbl:'1E',g:'E',p:1},{lbl:'3º',p:3},          // M75: 1E vs 3º(A/B/C/D/F)  (Alemanha × ...)
+  {lbl:'2E',g:'E',p:2},{lbl:'2I',g:'I',p:2},   // M77: 2E vs 2I  (Costa do Marfim × Noruega)
+  {lbl:'1G',g:'G',p:1},{lbl:'3º',p:3},          // M81: 1G vs 3º(A/E/H/I/J)  (Egito × ...)
+  {lbl:'1D',g:'D',p:1},{lbl:'3º',p:3},          // M82: 1D vs 3º(B)  (EUA × Bósnia)
+  {lbl:'1H',g:'H',p:1},{lbl:'2J',g:'J',p:2},   // M83: 1H vs 2J  (Espanha × Áustria)
+  {lbl:'2K',g:'K',p:2},{lbl:'2L',g:'L',p:2},   // M84: 2K vs 2L  (Portugal × Gana)
+  // Lado direito — 8 confrontos (slots 16-31)
+  {lbl:'1F',g:'F',p:1},{lbl:'2C',g:'C',p:2},   // M76: 1F vs 2C  (Holanda × Marrocos)
+  {lbl:'1I',g:'I',p:1},{lbl:'3º',p:3},          // M78: 1I vs 3º(C/D/F/G/H)  (França × ...)
+  {lbl:'1A',g:'A',p:1},{lbl:'3º',p:3},          // M79: 1A vs 3º(C/E/F/H/I)  (México × ...)
+  {lbl:'1L',g:'L',p:1},{lbl:'3º',p:3},          // M80: 1L vs 3º(E/H/I/J/K)  (Inglaterra × ...)
+  {lbl:'1B',g:'B',p:1},{lbl:'3º',p:3},          // M85: 1B vs 3º(E/F/G/I/J)  (Suíça × ...)
+  {lbl:'2D',g:'D',p:2},{lbl:'2G',g:'G',p:2},   // M86: 2D vs 2G  (Austrália × Irã)
+  {lbl:'1J',g:'J',p:1},{lbl:'2H',g:'H',p:2},   // M87: 1J vs 2H  (Argentina × Uruguai)
+  {lbl:'1K',g:'K',p:1},{lbl:'3º',p:3},          // M88: 1K vs 3º(D/E/I/J/L)  (Colômbia × ...)
 ];
 
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
