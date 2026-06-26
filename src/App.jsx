@@ -1319,7 +1319,7 @@ export default function App() {
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
-            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} matches={matches} results={results} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
@@ -2223,7 +2223,7 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
 }
 
 /* ============================ Knockout Showcase (Cinema) ============================ */
-function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null }) {
+function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {} }) {
   const [idx, setIdx] = useState(0);
   const [showBracket, setShowBracket] = useState(false);
   const koMatches = useMemo(() => matches.filter((m) => PHASES_KO.includes(m.phase)), [matches]);
@@ -2231,15 +2231,17 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 
   const m = koMatches[idx];
   const res = results[m.id];
+  const live = liveScores[m.id];
+  const isLive = live && ['1H','2H','HT','ET','P','LIVE'].includes(live.status);
+  const effectiveRes = res || (isLive && live.home != null && live.away != null ? { home: live.home, away: live.away, qualifier: live.qualifier || null } : null);
   const d = draft[m.id] || {};
   const pick = d.qualifier ?? myPicks[m.id]?.qualifier ?? null;
 
-  // Janela de palpite: abre 24h antes, fecha 15min antes (igual fase de grupos)
   const now = Date.now();
   const locked = isLocked(m, now);
   const inWindow = isOpenWindow(m, now);
   const beforeWindow = now < openTime(m);
-  const canPick = inWindow && !res;
+  const canPick = inWindow && !res && !isLive;
 
   const fmtCountdown = (ms) => {
     if (ms <= 0) return null;
@@ -2306,8 +2308,13 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
   const dim = (side) => winner && winner !== side;
   const flagUrl = (team) => `https://flagcdn.com/w160/${FLAG_CODES[team]}.png`;
 
+  const liveStatusLabel = { '1H': '1º Tempo', '2H': '2º Tempo', 'HT': 'Intervalo', 'ET': 'Prorrogação', 'P': 'Pênaltis', 'LIVE': 'Ao vivo' };
+  const liveLabel = isLive ? (liveStatusLabel[live.status] || 'Ao vivo') : null;
+  const liveElapsed = isLive && live.elapsed ? `${live.elapsed}'` : null;
+
   let statusText = 'Aguardando resultado';
-  if (winner) statusText = `${winner === 'home' ? m.home : m.away} avança para a próxima fase`;
+  if (isLive) statusText = [liveLabel, liveElapsed].filter(Boolean).join(' · ');
+  else if (winner) statusText = `${winner === 'home' ? m.home : m.away} avança para a próxima fase`;
   else if (draw) statusText = 'Empate — defina os pênaltis';
   else if (bothScore) statusText = 'Resultado registrado';
 
@@ -2449,14 +2456,17 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               }}></div>
               <div style={{
                 width: '100%', height: '100%', borderRadius: '50%',
-                background: 'radial-gradient(circle at 36% 30%,#ffe9a8,#d4a13a 56%,#9a6c1d)',
-                boxShadow: '0 10px 30px rgba(202,160,64,.5),inset 0 2px 6px rgba(255,255,255,.5),inset 0 -6px 12px rgba(120,80,10,.5)',
+                background: isLive ? 'radial-gradient(circle at 36% 30%,#ff6b6b,#c0392b 56%,#7b1515)' : 'radial-gradient(circle at 36% 30%,#ffe9a8,#d4a13a 56%,#9a6c1d)',
+                boxShadow: isLive ? '0 10px 30px rgba(192,57,43,.6),inset 0 2px 6px rgba(255,150,150,.4),inset 0 -6px 12px rgba(80,10,10,.5)' : '0 10px 30px rgba(202,160,64,.5),inset 0 2px 6px rgba(255,255,255,.5),inset 0 -6px 12px rgba(120,80,10,.5)',
                 display: 'grid', placeItems: 'center',
               }}>
-                <span style={{
-                  fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)',
-                  letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)',
-                }}>VS</span>
+                {isLive && live.home != null ? (
+                  <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(18px,4.5vw,26px)', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,.5)', letterSpacing: '.04em' }}>
+                    {live.home} – {live.away}
+                  </span>
+                ) : (
+                  <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)', letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)' }}>VS</span>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -2606,38 +2616,56 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           {users.map((u, i) => {
             const p = picksAll[u.slug]?.[m.id];
             const myOwn = me?.slug === u.slug;
-            const pts = p && res ? points(p, res, true) : null;
+            // Use effectiveRes (live or official) for points
+            const pts = p && effectiveRes ? points(p, effectiveRes, true) : null;
+            // Compute breakdown for discriminated display
+            const scoreAxis = p && effectiveRes ? (() => {
+              if (p.home === effectiveRes.home && p.away === effectiveRes.away) return 3;
+              return Math.sign(p.home - p.away) === Math.sign(effectiveRes.home - effectiveRes.away) ? 1 : 0;
+            })() : null;
+            const pickQ = p?.qualifier || (p && p.home !== p.away ? (p.home > p.away ? 'home' : 'away') : null);
+            const resQ = effectiveRes?.qualifier || null;
+            const qualAxis = (pickQ && resQ && pickQ === resQ) ? 2 : (pickQ && resQ) ? 0 : null;
             return (
               <div key={u.slug} style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
                 borderBottom: i < users.length - 1 ? `1px solid ${t.cardBorder}` : 'none',
                 background: myOwn ? `${t.phaseBg}` : 'transparent',
               }}>
                 <Avatar user={u} size={28} />
-                <span style={{ flex: 1, fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 14, color: t.text }}>
+                <span style={{ flex: 1, fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 14, color: t.text, minWidth: 0 }}>
                   {u.name}{myOwn && <span style={{ fontSize: 10, color: t.gold, marginLeft: 6 }}>você</span>}
                 </span>
                 {p ? (
-                  <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 15, color: t.text }}>
                       {p.home ?? '–'} × {p.away ?? '–'}
                     </span>
-                    {p.qualifier && (
+                    {pickQ && (
                       <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                        background: p.qualifier === 'home' ? `${TEAM_COLORS[m.home] || t.gold}33` : `${TEAM_COLORS[m.away] || t.gold}33`,
-                        color: p.qualifier === 'home' ? (TEAM_COLORS[m.home] || t.gold) : (TEAM_COLORS[m.away] || t.gold),
+                        fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
+                        background: pickQ === 'home' ? `${TEAM_COLORS[m.home] || t.gold}33` : `${TEAM_COLORS[m.away] || t.gold}33`,
+                        color: pickQ === 'home' ? (TEAM_COLORS[m.home] || t.gold) : (TEAM_COLORS[m.away] || t.gold),
                       }}>
-                        {p.qualifier === 'home' ? m.home : m.away}
+                        {pickQ === 'home' ? m.home : m.away}
                       </span>
                     )}
                     {pts != null && (
-                      <span style={{
-                        fontFamily: 'Oswald', fontWeight: 900, fontSize: 13, minWidth: 28, textAlign: 'right',
-                        color: pts >= 3 ? '#f2d889' : pts > 0 ? t.text : t.sub,
-                      }}>{pts > 0 ? `+${pts}` : '0'}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                        <span style={{
+                          fontFamily: 'Oswald', fontWeight: 900, fontSize: 14,
+                          color: pts >= 4 ? '#f2d889' : pts > 0 ? t.text : t.sub,
+                        }}>{pts > 0 ? `+${pts}` : '0'}</span>
+                        {(scoreAxis != null || qualAxis != null) && (
+                          <span style={{ fontSize: 9, color: t.sub, letterSpacing: '.04em', whiteSpace: 'nowrap' }}>
+                            {scoreAxis != null && `${scoreAxis > 0 ? '+' : ''}${scoreAxis}pl`}
+                            {scoreAxis != null && qualAxis != null && ' '}
+                            {qualAxis != null && `${qualAxis > 0 ? '+' : ''}${qualAxis}q`}
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </>
+                  </div>
                 ) : (
                   <span style={{ fontSize: 12, color: t.sub, fontStyle: 'italic' }}>sem palpite</span>
                 )}
@@ -2656,7 +2684,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 }
 
 /* ============================ Tabela (standings da API) ============================ */
-function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null }) {
+function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {} }) {
   const [state, setState] = useState({ loading: true });
   const [groupsCollapsed, setGroupsCollapsed] = useState(false);
 
@@ -2684,7 +2712,7 @@ function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () 
     return PHASES_KO.map((ph) => ({ phase: ph, items: grouped[ph] || [] })).filter((g) => g.items.length > 0);
   })();
 
-  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} />;
+  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} />;
 
   return (
     <section aria-label="Tabela dos grupos">
