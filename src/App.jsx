@@ -1985,32 +1985,56 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   useEffect(() => { fetchStandings().then(setStandings).catch(() => {}); }, []);
 
   const seed32 = useMemo(() => {
-    // Prioridade: matches de 32 avos já cadastrados no BD
-    const m32 = matches.filter(m => m.phase === '32 avos de final');
-    if (m32.length > 0) {
-      const ts = []; m32.forEach(m => { ts.push(m.home, m.away); }); return ts;
-    }
-    // Fallback: montar a partir do standings usando o chaveamento oficial Copa 2026
+    // Always build from official Copa 2026 bracket seeding via standings
+    const slotTeams = Array(32).fill(null);
     if (standings?.groups) {
       const grp = {};
       for (const g of standings.groups) {
         const sorted = [...g.rows].sort((a, b) => (b.pts||0)-(a.pts||0) || (b.gd||0)-(a.gd||0) || (b.gf||0)-(a.gf||0));
         grp[g.group] = sorted.map(r => r.team);
       }
-      // Melhores 3os colocados (por pts, depois gd, depois gf)
       const thirds = Object.entries(grp)
         .filter(([,ts]) => ts.length >= 3)
         .map(([g,ts]) => { const row = standings.groups.find(x=>x.group===g)?.rows.find(r=>r.team===ts[2]); return {team:ts[2],pts:row?.pts||0,gd:row?.gd||0,gf:row?.gf||0}; })
         .sort((a,b) => b.pts-a.pts||b.gd-a.gd||b.gf-a.gf)
         .map(x=>x.team);
-
       let thirdIdx = 0;
-      return COPA2026_SEEDS.map(seed => {
-        if (seed.p === 3) return thirds[thirdIdx++] || null;
-        return seed.g ? (grp[seed.g]?.[seed.p-1] || null) : null;
+      COPA2026_SEEDS.forEach((seed, i) => {
+        if (seed.p === 3) slotTeams[i] = thirds[thirdIdx++] || null;
+        else slotTeams[i] = seed.g ? (grp[seed.g]?.[seed.p-1] || null) : null;
       });
     }
-    return Array(32).fill(null);
+    // Augment with DB matches: for each 32avos slot pair, if standings slot is empty
+    // but a DB match has one of those teams, fill the slot (handles ESPN-synced names too)
+    const m32 = matches.filter(m => m.phase === '32 avos de final');
+    if (m32.length > 0) {
+      const used = new Set();
+      const teq = (a, b) => { if (!a || !b) return false; if (a === b) return true; return matchesTeam(a, b) || matchesTeam(b, a); };
+      for (let s = 0; s < 16; s++) {
+        const tA = slotTeams[s*2], tB = slotTeams[s*2+1];
+        // Find DB match that fits this slot (fuzzy name match)
+        const m = m32.find(m => !used.has(m.id) && (
+          (teq(m.home, tA) || teq(m.away, tA) || teq(m.home, tB) || teq(m.away, tB)) ||
+          (!tA && !tB) // slot fully unknown — assign first unmatched
+        ));
+        if (m) {
+          used.add(m.id);
+          // Determine orientation: home goes to slot A if it matches tA (or tA is unknown)
+          const homeIsA = tA ? teq(m.home, tA) : !teq(m.home, tB);
+          slotTeams[s*2]   = homeIsA ? m.home : m.away;
+          slotTeams[s*2+1] = homeIsA ? m.away : m.home;
+        }
+      }
+      // Any remaining unplaced matches fill first fully-null slot pairs
+      const unplaced = m32.filter(m => !used.has(m.id));
+      let ni = 0;
+      for (let s = 0; s < 16 && ni < unplaced.length; s++) {
+        if (!slotTeams[s*2] && !slotTeams[s*2+1]) {
+          slotTeams[s*2] = unplaced[ni].home; slotTeams[s*2+1] = unplaced[ni].away; ni++;
+        }
+      }
+    }
+    return slotTeams;
   }, [matches, standings]);
 
   const mbp = useMemo(() => {
@@ -2039,13 +2063,17 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   const lc = t.cardBorder || 'rgba(255,255,255,0.18)';
   const lw = 1.5;
 
-  // Get match data
+  // Get match data (fuzzy name match handles ESPN English names vs standings Portuguese names)
+  const teqB = (a, b) => { if (!a || !b) return false; if (a === b) return true; return matchesTeam(a, b) || matchesTeam(b, a); };
   const getR1 = (side, i) => {
     const b = side * 16, home = seed32[b + i*2], away = seed32[b + i*2+1];
-    const m = (mbp['32 avos de final']||[]).find(m => (m.home===home&&m.away===away)||(m.home===away&&m.away===home));
+    const m = (mbp['32 avos de final']||[]).find(m =>
+      (teqB(m.home,home)&&teqB(m.away,away))||(teqB(m.home,away)&&teqB(m.away,home))
+    );
     const res = m ? results[m.id] : null;
     const w = res?.qualifier||(res?.home>res?.away?'home':res?.away>res?.home?'away':null);
-    return {home, away, w};
+    // Use DB match names when available (so flags render correctly)
+    return { home: m ? (teqB(m.home,home) ? m.home : m.away) : home, away: m ? (teqB(m.home,home) ? m.away : m.home) : away, w };
   };
   const getM = (phase, i) => {
     const m = (mbp[phase]||[])[i];
