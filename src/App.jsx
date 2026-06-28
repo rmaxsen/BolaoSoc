@@ -177,7 +177,11 @@ function points(pick, res, isKO = false) {
   const pickQ = pick.qualifier || (pick.home !== pick.away
     ? (pick.home > pick.away ? 'home' : 'away')
     : null);
-  const resQ = res.qualifier || null;
+  // Resultado: quem avançou. Em jogo decidido no tempo normal, vem do placar;
+  // em empate (pênaltis), usa o qualifier lançado pelo admin.
+  const resQ = res.qualifier || (res.home !== res.away
+    ? (res.home > res.away ? 'home' : 'away')
+    : null);
   const qualAxis = (pickQ && resQ && pickQ === resQ) ? 2 : 0;
   return scoreAxis + qualAxis;
 }
@@ -2613,7 +2617,8 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               return Math.sign(p.home - p.away) === Math.sign(effectiveRes.home - effectiveRes.away) ? 1 : 0;
             })() : null;
             const pickQ = p?.qualifier || (p && p.home !== p.away ? (p.home > p.away ? 'home' : 'away') : null);
-            const resQ = effectiveRes?.qualifier || null;
+            const resQ = effectiveRes?.qualifier || (effectiveRes && effectiveRes.home !== effectiveRes.away
+              ? (effectiveRes.home > effectiveRes.away ? 'home' : 'away') : null);
             const qualAxis = (pickQ && resQ && pickQ === resQ) ? 2 : (pickQ && resQ) ? 0 : null;
             return (
               <div key={u.slug} style={{
