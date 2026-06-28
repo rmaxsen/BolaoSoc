@@ -55,6 +55,17 @@ const COPA2026_SEEDS = [
   {lbl:'1K',g:'K',p:1},{lbl:'3º',p:3},          // M88: 1K vs 3º(D/E/I/J/L)  (Colômbia × ...)
 ];
 
+// Calendário oficial dos 32 avos (kickoff por nº de partida, horário de Brasília -03)
+// Datas: 28/jun a 03/jul/2026. Admin pode ajustar hora exata depois (remover + recadastrar).
+const KO_R32_SCHEDULE = {
+  73: '2026-06-28T17:00:00-03:00',
+  74: '2026-06-29T14:00:00-03:00', 75: '2026-06-29T17:00:00-03:00', 76: '2026-06-29T20:00:00-03:00',
+  77: '2026-06-30T14:00:00-03:00', 78: '2026-06-30T17:00:00-03:00', 79: '2026-06-30T20:00:00-03:00',
+  80: '2026-07-01T14:00:00-03:00', 81: '2026-07-01T17:00:00-03:00', 82: '2026-07-01T20:00:00-03:00',
+  83: '2026-07-02T14:00:00-03:00', 84: '2026-07-02T17:00:00-03:00', 85: '2026-07-02T20:00:00-03:00',
+  86: '2026-07-03T14:00:00-03:00', 87: '2026-07-03T17:00:00-03:00', 88: '2026-07-03T20:00:00-03:00',
+};
+
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
 const FLAG_CODES = {
   'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr', 'Rep. Tcheca': 'cz',
@@ -3379,10 +3390,11 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
                     const matchesToInsert = confrontos.map(c => {
                       const home = resolverTeamLabel(c.home, standing, topThirds);
                       const away = resolverTeamLabel(c.away, standing, topThirds);
-                      return { home, away };
+                      const kickoff = KO_R32_SCHEDULE[c.match] || '2026-06-29T17:00:00-03:00';
+                      return { home, away, kickoff };
                     });
                     for (const m of matchesToInsert) {
-                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: '32 avos de final', p_home: m.home, p_away: m.away, p_kickoff: null });
+                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: '32 avos de final', p_home: m.home, p_away: m.away, p_kickoff: m.kickoff });
                     }
                     await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
                   } catch (e) {
