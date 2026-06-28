@@ -136,7 +136,9 @@ begin
 end $$;
 
 -- Organizador lança (ou apaga, passando null) o resultado. Só após o jogo começar.
-create or replace function public.set_result(p_name text, p_pin text, p_match text, p_home int, p_away int)
+-- p_qualifier (KO): quem avança ('home'/'away'). Quando não enviado, preserva o
+-- valor existente — sync ao vivo/ESPN chamam sem qualifier e não devem apagá-lo.
+create or replace function public.set_result(p_name text, p_pin text, p_match text, p_home int, p_away int, p_qualifier text default null)
 returns void language plpgsql security definer set search_path = public as $$
 declare u users; m matches;
 begin
@@ -148,8 +150,9 @@ begin
   if p_home is null or p_away is null then
     delete from results where match_id = p_match;
   else
-    insert into results (match_id, home, away) values (p_match, p_home, p_away)
-    on conflict (match_id) do update set home = excluded.home, away = excluded.away, updated_at = now();
+    insert into results (match_id, home, away, qualifier) values (p_match, p_home, p_away, p_qualifier)
+    on conflict (match_id) do update set home = excluded.home, away = excluded.away,
+      qualifier = coalesce(excluded.qualifier, public.results.qualifier), updated_at = now();
   end if;
 end $$;
 
