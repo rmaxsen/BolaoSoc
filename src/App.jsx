@@ -2205,7 +2205,17 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
 function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {} }) {
   const [idx, setIdx] = useState(0);
   const [showBracket, setShowBracket] = useState(false);
+  const idxInit = useRef(false);
   const koMatches = useMemo(() => matches.filter((m) => PHASES_KO.includes(m.phase)), [matches]);
+
+  // Ao abrir, pula pro primeiro jogo que ainda não terminou (sem resultado lançado).
+  useEffect(() => {
+    if (idxInit.current || koMatches.length === 0) return;
+    idxInit.current = true;
+    const next = koMatches.findIndex((km) => !results[km.id]);
+    if (next > 0) setIdx(next);
+  }, [koMatches, results]);
+
   if (koMatches.length === 0) return null;
 
   const m = koMatches[idx];
