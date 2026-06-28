@@ -3379,13 +3379,10 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
                     const matchesToInsert = confrontos.map(c => {
                       const home = resolverTeamLabel(c.home, standing, topThirds);
                       const away = resolverTeamLabel(c.away, standing, topThirds);
-                      return {
-                        id: `m${c.match}`, grp: null, home, away, kickoff: null, city: null,
-                        phase: '32 avos de final', is_seed: true,
-                      };
+                      return { home, away };
                     });
                     for (const m of matchesToInsert) {
-                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, ...m });
+                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: '32 avos de final', p_home: m.home, p_away: m.away, p_kickoff: null });
                     }
                     await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
                   } catch (e) {
