@@ -75,6 +75,12 @@ const REAL_R32_FIXTURES = [
   { match: 88, home: 'Colômbia',      away: 'Gana',                kickoff: '2026-07-03T22:30:00-03:00' },
 ];
 
+// Ordem vertical do bracket por nº de partida (árvore oficial FIFA, fonte Wikipedia).
+// Esquerda → Semifinal 1; Direita → Semifinal 2. Pares adjacentes alimentam a mesma oitava.
+// R16: 89(74,77) 90(73,75) 93(83,84) 94(81,82) | 91(76,78) 92(79,80) 95(86,88) 96(85,87)
+const BRACKET_LEFT_ORDER  = [74, 77, 73, 75, 83, 84, 81, 82];
+const BRACKET_RIGHT_ORDER = [76, 78, 79, 80, 86, 88, 85, 87];
+
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
 const FLAG_CODES = {
   'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr', 'Rep. Tcheca': 'cz',
@@ -2016,71 +2022,14 @@ function toPtName(n) {
 
 /* ============================ Bracket Overlay ============================ */
 function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false, t = {} }) {
-  const [standings, setStandings] = useState(null);
-  useEffect(() => { fetchStandings().then(setStandings).catch(() => {}); }, []);
-
   const seed32 = useMemo(() => {
-    // Always build from official Copa 2026 bracket seeding via standings
-    const slotTeams = Array(32).fill(null);
-    if (standings?.groups) {
-      const grp = {};
-      for (const g of standings.groups) {
-        const sorted = [...g.rows].sort((a, b) => (b.pts||0)-(a.pts||0) || (b.gd||0)-(a.gd||0) || (b.gf||0)-(a.gf||0));
-        grp[g.group] = sorted.map(r => r.team);
-      }
-      const thirds = Object.entries(grp)
-        .filter(([,ts]) => ts.length >= 3)
-        .map(([g,ts]) => { const row = standings.groups.find(x=>x.group===g)?.rows.find(r=>r.team===ts[2]); return {team:ts[2],pts:row?.pts||0,gd:row?.gd||0,gf:row?.gf||0}; })
-        .sort((a,b) => b.pts-a.pts||b.gd-a.gd||b.gf-a.gf)
-        .map(x=>x.team);
-      let thirdIdx = 0;
-      COPA2026_SEEDS.forEach((seed, i) => {
-        if (seed.p === 3) slotTeams[i] = thirds[thirdIdx++] || null;
-        else slotTeams[i] = seed.g ? (grp[seed.g]?.[seed.p-1] || null) : null;
-      });
-    }
-    // Augment: fill null slots from DB matches, but KEEP standings PT names (needed for flags)
-    const m32 = matches.filter(m => m.phase === '32 avos de final');
-    if (m32.length > 0) {
-      const used = new Set();
-      // teq: fuzzy match between a standings name (PT) and any team name
-      const teq = (slotName, dbName) => {
-        if (!slotName || !dbName) return false;
-        if (slotName === dbName) return true;
-        // slotName is PT, dbName could be PT or English
-        return matchesTeam(slotName, dbName) || matchesTeam(dbName, slotName);
-      };
-      for (let s = 0; s < 16; s++) {
-        const tA = slotTeams[s*2], tB = slotTeams[s*2+1];
-        const m = m32.find(m => !used.has(m.id) && (
-          teq(tA, m.home) || teq(tA, m.away) || teq(tB, m.home) || teq(tB, m.away) ||
-          (!tA && !tB)
-        ));
-        if (m) {
-          used.add(m.id);
-          // Only fill slots that standings couldn't resolve (null); keep PT names otherwise
-          if (!tA) {
-            // determine which DB team goes here based on the other slot
-            slotTeams[s*2] = (tB && teq(tB, m.home)) ? m.away : m.home;
-          }
-          if (!tB) {
-            slotTeams[s*2+1] = (slotTeams[s*2] === m.home) ? m.away : m.home;
-          }
-        }
-      }
-      // Remaining unplaced matches → fill first fully-null slot pairs
-      const unplaced = m32.filter(m => !used.has(m.id));
-      let ni = 0;
-      for (let s = 0; s < 16 && ni < unplaced.length; s++) {
-        if (!slotTeams[s*2] && !slotTeams[s*2+1]) {
-          slotTeams[s*2] = toPtName(unplaced[ni].home);
-          slotTeams[s*2+1] = toPtName(unplaced[ni].away);
-          ni++;
-        }
-      }
-    }
+    // Monta direto dos jogos reais confirmados, na ordem oficial do bracket FIFA.
+    const byMatch = Object.fromEntries(REAL_R32_FIXTURES.map(f => [f.match, f]));
+    const slotTeams = [];
+    for (const mn of BRACKET_LEFT_ORDER)  { const f = byMatch[mn]; slotTeams.push(f?.home || null, f?.away || null); }
+    for (const mn of BRACKET_RIGHT_ORDER) { const f = byMatch[mn]; slotTeams.push(f?.home || null, f?.away || null); }
     return slotTeams;
-  }, [matches, standings]);
+  }, []);
 
   const mbp = useMemo(() => {
     const mp = {};
