@@ -985,6 +985,7 @@ export default function App() {
   const [pedroVotes, setPedroVotes] = useState({});  // slug -> vote (boolean)
   const [draft, setDraft] = useState({});
   const [tab, setTab] = useState('jogos');
+  const initialTabSet = useRef(false);
   const [filtro, setFiltro] = useState('todos');
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
@@ -1019,7 +1020,13 @@ export default function App() {
       supabase.from('results').select('*'),
     ]);
     if (mq.error || uq.error || pq.error || rq.error) throw new Error('Falha ao carregar dados.');
-    setMatches(mq.data || []);
+    const loadedMatches = mq.data || [];
+    setMatches(loadedMatches);
+    // Na primeira carga, se o mata-mata já começou, abre direto na Classificação.
+    if (!initialTabSet.current) {
+      initialTabSet.current = true;
+      if (loadedMatches.some((m) => PHASES_KO.includes(m.phase))) setTab('tabela');
+    }
     setUsers(uq.data || []);
     const pa = {};
     (pq.data || []).forEach((p) => { (pa[p.user_slug] = pa[p.user_slug] || {})[p.match_id] = p; });
@@ -2445,9 +2452,9 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               <div style={{
                 fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 'clamp(11px,3vw,13px)',
                 letterSpacing: '.18em', color: t.text,
-              }}>{fmtTime(m.kickoff).split(' ')[0].toUpperCase()}</div>
+              }}>{new Date(m.kickoff).toLocaleDateString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' })}</div>
               <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,15px)', letterSpacing: '.14em', color: t.gold }}>
-                {fmtTime(m.kickoff).split(' ')[1]}
+                {fmtTime(m.kickoff)}
               </div>
             </div>
             {draw && <div style={{
