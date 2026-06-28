@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from './supabase.js';
-import r32Data from './wc2026_r32_allocation.json';
 
 /* ============================================================
    BOLÃO DA COPA 2026 — versão definitiva (Supabase + Vercel)
@@ -55,16 +54,26 @@ const COPA2026_SEEDS = [
   {lbl:'1K',g:'K',p:1},{lbl:'3º',p:3},          // M88: 1K vs 3º(D/E/I/J/L)  (Colômbia × ...)
 ];
 
-// Calendário oficial dos 32 avos (kickoff por nº de partida, horário de Brasília -03)
-// Datas: 28/jun a 03/jul/2026. Admin pode ajustar hora exata depois (remover + recadastrar).
-const KO_R32_SCHEDULE = {
-  73: '2026-06-28T17:00:00-03:00',
-  74: '2026-06-29T14:00:00-03:00', 75: '2026-06-29T17:00:00-03:00', 76: '2026-06-29T20:00:00-03:00',
-  77: '2026-06-30T14:00:00-03:00', 78: '2026-06-30T17:00:00-03:00', 79: '2026-06-30T20:00:00-03:00',
-  80: '2026-07-01T14:00:00-03:00', 81: '2026-07-01T17:00:00-03:00', 82: '2026-07-01T20:00:00-03:00',
-  83: '2026-07-02T14:00:00-03:00', 84: '2026-07-02T17:00:00-03:00', 85: '2026-07-02T20:00:00-03:00',
-  86: '2026-07-03T14:00:00-03:00', 87: '2026-07-03T17:00:00-03:00', 88: '2026-07-03T20:00:00-03:00',
-};
+// Jogos REAIS dos 32 avos (confirmados, fonte: Sports Illustrated / FIFA).
+// home×away na ordem do bracket; kickoff em horário de Brasília (ET+1 = UTC-3).
+const REAL_R32_FIXTURES = [
+  { match: 73, home: 'África do Sul', away: 'Canadá',              kickoff: '2026-06-28T16:00:00-03:00' },
+  { match: 74, home: 'Brasil',        away: 'Japão',               kickoff: '2026-06-29T14:00:00-03:00' },
+  { match: 75, home: 'Alemanha',      away: 'Paraguai',            kickoff: '2026-06-29T17:30:00-03:00' },
+  { match: 76, home: 'Holanda',       away: 'Marrocos',            kickoff: '2026-06-29T22:00:00-03:00' },
+  { match: 77, home: 'Costa do Marfim', away: 'Noruega',          kickoff: '2026-06-30T14:00:00-03:00' },
+  { match: 78, home: 'França',        away: 'Suécia',              kickoff: '2026-06-30T18:00:00-03:00' },
+  { match: 79, home: 'México',        away: 'Equador',             kickoff: '2026-06-30T22:00:00-03:00' },
+  { match: 80, home: 'Inglaterra',    away: 'RD Congo',            kickoff: '2026-07-01T13:00:00-03:00' },
+  { match: 81, home: 'Bélgica',       away: 'Senegal',             kickoff: '2026-07-01T17:00:00-03:00' },
+  { match: 82, home: 'Estados Unidos', away: 'Bósnia e Herzegovina', kickoff: '2026-07-01T21:00:00-03:00' },
+  { match: 83, home: 'Espanha',       away: 'Áustria',             kickoff: '2026-07-02T16:00:00-03:00' },
+  { match: 84, home: 'Portugal',      away: 'Croácia',             kickoff: '2026-07-02T20:00:00-03:00' },
+  { match: 85, home: 'Suíça',         away: 'Argélia',             kickoff: '2026-07-03T00:00:00-03:00' },
+  { match: 86, home: 'Austrália',     away: 'Egito',               kickoff: '2026-07-03T15:00:00-03:00' },
+  { match: 87, home: 'Argentina',     away: 'Cabo Verde',          kickoff: '2026-07-03T19:00:00-03:00' },
+  { match: 88, home: 'Colômbia',      away: 'Gana',                kickoff: '2026-07-03T22:30:00-03:00' },
+];
 
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
 const FLAG_CODES = {
@@ -100,84 +109,6 @@ const TEAM_COLORS = {
   'Nigéria': '#007A5E', 'África do Sul': '#FFB81C', 'Nova Zelândia': '#000000',
 };
 
-/* Ranking FIFA — último desempate dos 12 terceiros colocados (posições aproximadas junho 2026) */
-const FIFA_RANKING = {
-  'Brasil': 1, 'Argentina': 2, 'França': 3, 'Inglaterra': 4, 'Holanda': 5,
-  'Alemanha': 6, 'Espanha': 7, 'Portugal': 8, 'Itália': 9, 'Bélgica': 10,
-  'Uruguai': 11, 'Croácia': 12, 'México': 13, 'Senegal': 14, 'Austrália': 15,
-  'Suíça': 16, 'Dinamarca': 17, 'Suécia': 18, 'Polônia': 19, 'Colômbia': 20,
-  'Japão': 21, 'Marrocos': 22, 'Turquia': 23, 'Irã': 24, 'Egito': 25,
-  'Coreia do Sul': 26, 'Costa Rica': 27, 'Equador': 28, 'Panamá': 29, 'Iraque': 30,
-  'Paraguai': 31, 'Canadá': 32, 'Escócia': 33, 'Noruega': 34, 'Bósnia e Herzegovina': 35,
-  'Áustria': 36, 'Gana': 37, 'Catar': 38, 'Arábia Saudita': 39, 'Costa do Marfim': 40,
-  'Tunísia': 41, 'Cabo Verde': 42, 'Curaçao': 43, 'Jordânia': 44, 'Uzbequistão': 45,
-  'Haiti': 46, 'Nigéria': 47, 'RD Congo': 48, 'Nova Zelândia': 49, 'Tailândia': 50,
-};
-
-// Resolve o Round of 32 a partir do JSON da FIFA e dos 8 grupos cujos 3ºs se classificaram
-function resolveRound32(qualifiedThirdGroups) {
-  if (qualifiedThirdGroups.length !== 8) throw new Error('Exatamente 8 terceiros obrigatórios');
-  const key = [...qualifiedThirdGroups].sort().join('');
-  const alloc = r32Data.third_place_allocation[key];
-  if (!alloc) throw new Error(`Combinação inválida: ${key}`);
-  return Object.entries(r32Data.round_of_32).map(([matchNo, def]) => {
-    const away = def.type === 'third' ? `3RD_${alloc[matchNo]}` : def.away;
-    return { match: Number(matchNo), home: def.home, away };
-  }).sort((a, b) => a.match - b.match);
-}
-
-// Calcula classificação de cada grupo a partir de matches + results
-// Retorna array de objetos {group, standing: [{team, pts, j, v, e, d, gf, ga, dg}]}
-function calcularClassificacaoGrupos(matches, results) {
-  const grupos = {};
-  matches.filter(m => m.grp && m.phase === 'Grupos').forEach(m => {
-    if (!grupos[m.grp]) grupos[m.grp] = {};
-    if (!grupos[m.grp][m.home]) grupos[m.grp][m.home] = { team: m.home, pts: 0, j: 0, v: 0, e: 0, d: 0, gf: 0, ga: 0 };
-    if (!grupos[m.grp][m.away]) grupos[m.grp][m.away] = { team: m.away, pts: 0, j: 0, v: 0, e: 0, d: 0, gf: 0, ga: 0 };
-    const res = results[m.id];
-    if (res && res.home != null && res.away != null) {
-      const h = grupos[m.grp][m.home], a = grupos[m.grp][m.away];
-      h.j++; a.j++; h.gf += res.home; h.ga += res.away; a.gf += res.away; a.ga += res.home;
-      if (res.home > res.away) { h.v++; h.pts += 3; a.d++; }
-      else if (res.home < res.away) { h.d++; a.v++; a.pts += 3; }
-      else { h.e++; a.e++; h.pts += 1; a.pts += 1; }
-    }
-  });
-  const standing = {};
-  Object.entries(grupos).forEach(([grp, teams]) => {
-    standing[grp] = Object.values(teams)
-      .map(t => ({ ...t, dg: t.gf - t.ga }))
-      .sort((a, b) => (b.pts - a.pts) || (b.dg - a.dg) || (b.gf - a.gf));
-  });
-  return standing;
-}
-
-// Pega os 12 terceiros, ranqueia por pts > dg > gf > ranking FIFA, retorna os 8 melhores
-function rankearTerceiros(standing) {
-  const thirds = Object.entries(standing)
-    .map(([grp, teams]) => teams[2] ? { ...teams[2], grp } : null)
-    .filter(Boolean)
-    .sort((a, b) => (b.pts - a.pts) || ((b.gf - b.ga) - (a.gf - a.ga)) || (b.gf - a.gf) || ((FIFA_RANKING[a.team] || 999) - (FIFA_RANKING[b.team] || 999)));
-  return thirds.slice(0, 8);
-}
-
-// Resolve W_A, RU_B, 3RD_C para seleções reais
-function resolverTeamLabel(label, standing, topThirds) {
-  if (label.startsWith('W_')) {
-    const grp = label[2];
-    return standing[grp]?.[0]?.team || label;
-  }
-  if (label.startsWith('RU_')) {
-    const grp = label[3];
-    return standing[grp]?.[1]?.team || label;
-  }
-  if (label.startsWith('3RD_')) {
-    const grp = label[4];
-    const found = topThirds.find(t => t.grp === grp);
-    return found?.team || label;
-  }
-  return label;
-}
 
 /* Componente de bandeira: imagem real com fallback pro emoji se faltar código. */
 function Flag({ team, size = 44 }) {
@@ -3367,33 +3298,19 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
 
       <div className="bl-panel">
         <h2 className="bl-display">Iniciar Mata-Mata (Round of 32)</h2>
-        <p className="sub">Calcula os 8 melhores terceiros, resolve confrontos da FIFA e cria as 16 partidas dos 32 avos. Execute quando os grupos encerrarem.</p>
+        <p className="sub">Cadastra de uma vez os 16 jogos reais e confirmados dos 32 avos (times e horários oficiais de Brasília). Todo mundo já pode palpitar.</p>
         {(() => {
-          const groupMatches = matches.filter(m => m.phase === 'Grupos');
-          const withResult = groupMatches.filter(m => results[m.id]).length;
-          const total = groupMatches.length;
-          const allDone = total === 72 && withResult === 72;
-          const missing = total - withResult;
+          const koJaExiste = matches.some(m => PHASES_KO.includes(m.phase));
           return (
             <>
               <div style={{ fontSize: 12, color: 'var(--cinza)', marginBottom: 12, textAlign: 'center' }}>
-                {allDone ? '✅ Todos os 72 jogos de grupo com resultado' : `⏳ ${missing} resultado${missing !== 1 ? 's' : ''} aguardando... (${withResult}/72)`}
+                {koJaExiste ? '✅ Mata-mata já cadastrado' : '16 jogos prontos pra cadastrar (28/jun a 03/jul)'}
               </div>
-              <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !allDone || matches.some(m => PHASES_KO.includes(m.phase))}
+              <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || koJaExiste}
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    const standing = calcularClassificacaoGrupos(matches, results);
-                    const topThirds = rankearTerceiros(standing);
-                    const thirdGroups = topThirds.map(t => t.grp);
-                    const confrontos = resolveRound32(thirdGroups);
-                    const matchesToInsert = confrontos.map(c => {
-                      const home = resolverTeamLabel(c.home, standing, topThirds);
-                      const away = resolverTeamLabel(c.away, standing, topThirds);
-                      const kickoff = KO_R32_SCHEDULE[c.match] || '2026-06-29T17:00:00-03:00';
-                      return { home, away, kickoff };
-                    });
-                    for (const m of matchesToInsert) {
+                    for (const m of REAL_R32_FIXTURES) {
                       await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: '32 avos de final', p_home: m.home, p_away: m.away, p_kickoff: m.kickoff });
                     }
                     await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
