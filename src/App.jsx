@@ -29,6 +29,9 @@ const FLAGS = {
 };
 const flag = (t) => FLAGS[t] || '⚽';
 const PHASES_KO = ['32 avos de final', 'Oitavas de final', 'Quartas de final', 'Semifinal', '3º lugar', 'Final'];
+// Rótulo de exibição. A chave de dados continua '32 avos de final', mas a rodada
+// de 32 times é, oficialmente, os "16 avos de final" (oitavas = 16 times).
+const phaseLabel = (p) => (p === '32 avos de final' ? '16 avos de final' : p);
 
 // Copa 2026 bracket seeding — chaveamento oficial FIFA (verificado em junho/2026)
 // Lado esquerdo → Semifinal 1 (Dallas 14/jul); Lado direito → Semifinal 2 (Atlanta 15/jul)
@@ -2143,9 +2146,9 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   ];
 
   const colLabels = [
-    {cx:XC[0],lbl:'32 AVOS'},{cx:XC[1],lbl:'OITAVAS'},{cx:XC[2],lbl:'QUARTAS'},{cx:XC[3],lbl:'SEMI'},
+    {cx:XC[0],lbl:'16 AVOS'},{cx:XC[1],lbl:'OITAVAS'},{cx:XC[2],lbl:'QUARTAS'},{cx:XC[3],lbl:'SEMI'},
     {cx:XC[4],lbl:'FINAL'},
-    {cx:XC[5],lbl:'SEMI'},{cx:XC[6],lbl:'QUARTAS'},{cx:XC[7],lbl:'OITAVAS'},{cx:XC[8],lbl:'32 AVOS'},
+    {cx:XC[5],lbl:'SEMI'},{cx:XC[6],lbl:'QUARTAS'},{cx:XC[7],lbl:'OITAVAS'},{cx:XC[8],lbl:'16 AVOS'},
   ];
 
   // Quem venceu já sobe pra posição da próxima rodada, mesmo sem o adversário
@@ -2364,7 +2367,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
           background: t.phaseBg, boxShadow: `0 6px 24px ${t.phaseShadow}}`,
         }}>
           <span style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,16px)', letterSpacing: '.24em', color: t.gold }}>
-            ◆ {m.phase.toUpperCase()} ◆
+            ◆ {phaseLabel(m.phase).toUpperCase()} ◆
           </span>
         </div>
         <div style={{ flex: 1, height: 1, background: `linear-gradient(270deg,transparent,${t.cardBorder})` }}></div>
@@ -2753,7 +2756,7 @@ function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () 
           <h2 className="bl-display" style={{ margin: '0 0 14px', fontSize: 22, color: 'var(--cal)' }}>🏆 Mata-mata</h2>
           {koByPhase.map(({ phase, items }) => (
             <div key={phase}>
-              <div className="bl-ko-phase">{phase}</div>
+              <div className="bl-ko-phase">{phaseLabel(phase)}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
                 {items.map((m) => {
                   const res = results[m.id];
@@ -3307,7 +3310,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
 
       <div className="bl-panel">
         <h2 className="bl-display">Iniciar Mata-Mata (Round of 32)</h2>
-        <p className="sub">Cadastra de uma vez os 16 jogos reais e confirmados dos 32 avos (times e horários oficiais de Brasília). Todo mundo já pode palpitar.</p>
+        <p className="sub">Cadastra de uma vez os 16 jogos reais e confirmados dos 16 avos de final (times e horários oficiais de Brasília). Todo mundo já pode palpitar.</p>
         {(() => {
           const koJaExiste = matches.some(m => PHASES_KO.includes(m.phase));
           return (
@@ -3322,7 +3325,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
                     for (const m of REAL_R32_FIXTURES) {
                       await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: '32 avos de final', p_home: m.home, p_away: m.away, p_kickoff: m.kickoff });
                     }
-                    await onDone('✅ Mata-mata iniciado! 16 partidas de 32 avos criadas.');
+                    await onDone('✅ Mata-mata iniciado! 16 partidas dos 16 avos de final criadas.');
                   } catch (e) {
                     onError(`Erro ao iniciar: ${e.message}`);
                   } finally {
@@ -3342,7 +3345,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
         <div className="bl-field">
           <label htmlFor="ad-fase">Fase</label>
           <select id="ad-fase" className="bl-in" value={fase} onChange={(e) => setFase(e.target.value)}>
-            {PHASES_KO.map((p) => <option key={p}>{p}</option>)}
+            {PHASES_KO.map((p) => <option key={p} value={p}>{phaseLabel(p)}</option>)}
           </select>
         </div>
         <div className="bl-grid2">
