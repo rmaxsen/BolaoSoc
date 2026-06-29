@@ -2148,6 +2148,22 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
     {cx:XC[5],lbl:'SEMI'},{cx:XC[6],lbl:'QUARTAS'},{cx:XC[7],lbl:'OITAVAS'},{cx:XC[8],lbl:'32 AVOS'},
   ];
 
+  // Quem venceu já sobe pra posição da próxima rodada, mesmo sem o adversário
+  // definido. Usa o jogo do banco quando existe; senão herda o vencedor da
+  // rodada anterior (home = chave de cima, away = chave de baixo).
+  const adv = (c) => (c && c.w ? (c.w === 'home' ? c.home : c.away) : null);
+  const merge = (db, fbHome, fbAway) => ({ home: db.home || fbHome, away: db.away || fbAway, w: db.w });
+
+  const L1 = Y1.map((_, i) => getR1(0, i));
+  const R1 = Y1.map((_, i) => getR1(1, i));
+  const L2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', i),   adv(L1[i*2]), adv(L1[i*2+1])));
+  const R2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', 4+i), adv(R1[i*2]), adv(R1[i*2+1])));
+  const L3 = [0,1].map((i)     => merge(getM('Quartas de final', i),    adv(L2[i*2]), adv(L2[i*2+1])));
+  const R3 = [0,1].map((i)     => merge(getM('Quartas de final', 2+i),  adv(R2[i*2]), adv(R2[i*2+1])));
+  const L4 = merge(getM('Semifinal', 0), adv(L3[0]), adv(L3[1]));
+  const R4 = merge(getM('Semifinal', 1), adv(R3[0]), adv(R3[1]));
+  const FIN = merge(getM('Final', 0), adv(L4), adv(R4));
+
   return (
     <div onClick={onClose} style={{
       position:'fixed',inset:0,background:'rgba(0,0,0,.9)',zIndex:100,backdropFilter:'blur(8px)',
@@ -2176,23 +2192,23 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
             <g transform="translate(0,20)">
               {allLines}
               {/* Left 32avos — seed slots 0-15 */}
-              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(0,i); return svgMatch(XC[0],ty,home,away,w,`l1${i}`,i*2); })}
+              {Y1.map((ty,i)=>{ const {home,away,w}=L1[i]; return svgMatch(XC[0],ty,home,away,w,`l1${i}`,i*2); })}
               {/* Left oitavas */}
-              {Y2.map((ty,i)=>{ const {home,away,w}=getM('Oitavas de final',i); return svgMatch(XC[1],ty,home,away,w,`l2${i}`); })}
+              {Y2.map((ty,i)=>{ const {home,away,w}=L2[i]; return svgMatch(XC[1],ty,home,away,w,`l2${i}`); })}
               {/* Left quartas */}
-              {Y3.map((ty,i)=>{ const {home,away,w}=getM('Quartas de final',i); return svgMatch(XC[2],ty,home,away,w,`l3${i}`); })}
+              {Y3.map((ty,i)=>{ const {home,away,w}=L3[i]; return svgMatch(XC[2],ty,home,away,w,`l3${i}`); })}
               {/* Left semi */}
-              {(()=>{ const {home,away,w}=getM('Semifinal',0); return svgMatch(XC[3],Y4[0],home,away,w,'l4'); })()}
+              {svgMatch(XC[3],Y4[0],L4.home,L4.away,L4.w,'l4')}
               {/* Final (center) */}
-              {(()=>{ const {home,away,w}=getM('Final',0); return svgMatch(XC[4],Y4[0],home,away,w,'fin'); })()}
+              {svgMatch(XC[4],Y4[0],FIN.home,FIN.away,FIN.w,'fin')}
               {/* Right semi */}
-              {(()=>{ const {home,away,w}=getM('Semifinal',1); return svgMatch(XC[5],Y4[0],home,away,w,'r4'); })()}
+              {svgMatch(XC[5],Y4[0],R4.home,R4.away,R4.w,'r4')}
               {/* Right quartas */}
-              {Y3.map((ty,i)=>{ const {home,away,w}=getM('Quartas de final',2+i); return svgMatch(XC[6],ty,home,away,w,`r3${i}`); })}
+              {Y3.map((ty,i)=>{ const {home,away,w}=R3[i]; return svgMatch(XC[6],ty,home,away,w,`r3${i}`); })}
               {/* Right oitavas */}
-              {Y2.map((ty,i)=>{ const {home,away,w}=getM('Oitavas de final',4+i); return svgMatch(XC[7],ty,home,away,w,`r2${i}`); })}
+              {Y2.map((ty,i)=>{ const {home,away,w}=R2[i]; return svgMatch(XC[7],ty,home,away,w,`r2${i}`); })}
               {/* Right 32avos — seed slots 16-31 */}
-              {Y1.map((ty,i)=>{ const {home,away,w}=getR1(1,i); return svgMatch(XC[8],ty,home,away,w,`r1${i}`,16+i*2); })}
+              {Y1.map((ty,i)=>{ const {home,away,w}=R1[i]; return svgMatch(XC[8],ty,home,away,w,`r1${i}`,16+i*2); })}
             </g>
           </svg>
         </div>
