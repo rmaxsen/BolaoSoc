@@ -2421,6 +2421,11 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               onFocus={(e) => { if(canPick){e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`;} }}
               onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
             />
+            {res && (
+              <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.18em', color: t.sub, textTransform: 'uppercase' }}>
+                {scoreA !== '' ? 'seu palpite' : 'sem palpite'}
+              </div>
+            )}
             {draw && (
               <input
                 type="text" inputMode="numeric" placeholder="–" value={penA}
@@ -2457,19 +2462,31 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
                   <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(18px,4.5vw,26px)', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,.5)', letterSpacing: '.04em' }}>
                     {live.home} – {live.away}
                   </span>
+                ) : res ? (
+                  <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(18px,4.5vw,26px)', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)', letterSpacing: '.04em' }}>
+                    {res.home} – {res.away}
+                  </span>
                 ) : (
                   <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: 'clamp(20px,5vw,28px)', letterSpacing: '.02em', color: '#1c1304', textShadow: '0 1px 0 rgba(255,255,255,.4)' }}>VS</span>
                 )}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <div style={{
-                fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 'clamp(11px,3vw,13px)',
-                letterSpacing: '.18em', color: t.text,
-              }}>{new Date(m.kickoff).toLocaleDateString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' })}</div>
-              <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,15px)', letterSpacing: '.14em', color: t.gold }}>
-                {fmtTime(m.kickoff)}
-              </div>
+              {res ? (
+                <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 700, fontSize: 'clamp(10px,2.8vw,12px)', letterSpacing: '.2em', color: t.gold }}>
+                  PLACAR FINAL
+                </div>
+              ) : (
+                <>
+                  <div style={{
+                    fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 'clamp(11px,3vw,13px)',
+                    letterSpacing: '.18em', color: t.text,
+                  }}>{new Date(m.kickoff).toLocaleDateString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' })}</div>
+                  <div style={{ fontFamily: 'Oswald', fontWeight: 600, fontSize: 'clamp(13px,3.4vw,15px)', letterSpacing: '.14em', color: t.gold }}>
+                    {fmtTime(m.kickoff)}
+                  </div>
+                </>
+              )}
             </div>
             {draw && <div style={{
               fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.2em',
@@ -2526,6 +2543,11 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               onFocus={(e) => { if(canPick){e.target.style.borderColor = t.gold; e.target.style.boxShadow = `0 0 0 3px ${t.goldSoft},inset 0 2px 10px rgba(0,0,0,.25)`;} }}
               onBlur={(e) => { e.target.style.borderColor = t.slabBorder; e.target.style.boxShadow = 'inset 0 2px 10px rgba(0,0,0,.25)'; }}
             />
+            {res && (
+              <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.18em', color: t.sub, textTransform: 'uppercase' }}>
+                {scoreB !== '' ? 'seu palpite' : 'sem palpite'}
+              </div>
+            )}
             {draw && (
               <input
                 type="text" inputMode="numeric" placeholder="–" value={penB}
