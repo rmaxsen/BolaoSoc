@@ -189,6 +189,16 @@ function points(pick, res, isKO = false) {
   return scoreAxis + qualAxis;
 }
 
+// Classifica o palpite ESTRITAMENTE pelo placar, sem o desdobramento de quem
+// avança (vale para grupos e mata-mata). Usado nas colunas de estatística e no
+// desempate, pra "placar exato" significar placar cravado de verdade.
+function scoreOutcome(pick, res) {
+  if (!pick || !res || pick.home == null || pick.away == null) return null;
+  if (pick.home === res.home && pick.away === res.away) return 'exato';
+  if (Math.sign(pick.home - pick.away) === Math.sign(res.home - res.away)) return 'vencedor';
+  return null;
+}
+
 const loadSession = () => {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null; } catch { return null; }
 };
@@ -1198,8 +1208,11 @@ export default function App() {
       let total = 0, exatos = 0, vencedores = 0;
       for (const m of matches) {
         const res = results[m.id]; if (!res) continue;
-        const p = points(picksAll[u.slug]?.[m.id], res, m.phase !== 'Grupos'); if (p == null) continue;
-        total += p; if (p === 3) exatos++; if (p === 1) vencedores++;
+        const pick = picksAll[u.slug]?.[m.id];
+        const p = points(pick, res, m.phase !== 'Grupos'); if (p == null) continue;
+        total += p;
+        const so = scoreOutcome(pick, res);
+        if (so === 'exato') exatos++; else if (so === 'vencedor') vencedores++;
       }
       const champTeam = champPicks[u.slug] || null;
       const champHit = worldChampion && champTeam === worldChampion;
@@ -1245,9 +1258,12 @@ export default function App() {
         const live = liveScores?.[m.id];
         const effectiveRes = res || (live && live.home != null && live.away != null ? { home: live.home, away: live.away } : null);
         if (!effectiveRes) continue;
-        const p = points(picksAll[u.slug]?.[m.id], effectiveRes, m.phase !== 'Grupos');
+        const pick = picksAll[u.slug]?.[m.id];
+        const p = points(pick, effectiveRes, m.phase !== 'Grupos');
         if (p == null) continue;
-        total += p; if (p === 3) exatos++; if (p >= 1) vencedores++;
+        total += p;
+        const so = scoreOutcome(pick, effectiveRes);
+        if (so === 'exato') exatos++; else if (so === 'vencedor') vencedores++;
       }
       const champHit = worldChampion && champPicks[u.slug] === worldChampion;
       if (champHit) total += CHAMPION_PTS;
@@ -1580,8 +1596,8 @@ function JogosTab({ matches, me, users, now, picksAll, myPicks, draft, results, 
       const p = points(pick, res, m.phase !== 'Grupos');
       if (p == null) { semPalpite++; continue; }
       totalPts += p;
-      if (p === 3) exatos++;
-      if (p === 1) vencedores++;
+      const so = scoreOutcome(pick, res);
+      if (so === 'exato') exatos++; else if (so === 'vencedor') vencedores++;
     }
     return { totalPts, exatos, vencedores, semPalpite };
   }, [matches, results, myPicks]);
