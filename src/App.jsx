@@ -61,21 +61,21 @@ const COPA2026_SEEDS = [
 // home×away na ordem do bracket; kickoff em horário de Brasília (ET+1 = UTC-3).
 const REAL_R32_FIXTURES = [
   { match: 73, home: 'África do Sul', away: 'Canadá',              kickoff: '2026-06-28T16:00:00-03:00' },
-  { match: 74, home: 'Brasil',        away: 'Japão',               kickoff: '2026-06-29T14:00:00-03:00' },
-  { match: 75, home: 'Alemanha',      away: 'Paraguai',            kickoff: '2026-06-29T17:30:00-03:00' },
-  { match: 76, home: 'Holanda',       away: 'Marrocos',            kickoff: '2026-06-29T22:00:00-03:00' },
-  { match: 77, home: 'Costa do Marfim', away: 'Noruega',          kickoff: '2026-06-30T14:00:00-03:00' },
-  { match: 78, home: 'França',        away: 'Suécia',              kickoff: '2026-06-30T18:00:00-03:00' },
+  { match: 74, home: 'Alemanha',      away: 'Paraguai',            kickoff: '2026-06-29T17:30:00-03:00' },
+  { match: 75, home: 'Holanda',       away: 'Marrocos',            kickoff: '2026-06-29T22:00:00-03:00' },
+  { match: 76, home: 'Brasil',        away: 'Japão',               kickoff: '2026-06-29T14:00:00-03:00' },
+  { match: 77, home: 'França',        away: 'Suécia',              kickoff: '2026-06-30T18:00:00-03:00' },
+  { match: 78, home: 'Costa do Marfim', away: 'Noruega',          kickoff: '2026-06-30T14:00:00-03:00' },
   { match: 79, home: 'México',        away: 'Equador',             kickoff: '2026-06-30T22:00:00-03:00' },
   { match: 80, home: 'Inglaterra',    away: 'RD Congo',            kickoff: '2026-07-01T13:00:00-03:00' },
-  { match: 81, home: 'Bélgica',       away: 'Senegal',             kickoff: '2026-07-01T17:00:00-03:00' },
-  { match: 82, home: 'Estados Unidos', away: 'Bósnia e Herzegovina', kickoff: '2026-07-01T21:00:00-03:00' },
-  { match: 83, home: 'Espanha',       away: 'Áustria',             kickoff: '2026-07-02T16:00:00-03:00' },
-  { match: 84, home: 'Portugal',      away: 'Croácia',             kickoff: '2026-07-02T20:00:00-03:00' },
+  { match: 81, home: 'Estados Unidos', away: 'Bósnia e Herzegovina', kickoff: '2026-07-01T21:00:00-03:00' },
+  { match: 82, home: 'Bélgica',       away: 'Senegal',             kickoff: '2026-07-01T17:00:00-03:00' },
+  { match: 83, home: 'Portugal',      away: 'Croácia',             kickoff: '2026-07-02T20:00:00-03:00' },
+  { match: 84, home: 'Espanha',       away: 'Áustria',             kickoff: '2026-07-02T16:00:00-03:00' },
   { match: 85, home: 'Suíça',         away: 'Argélia',             kickoff: '2026-07-03T00:00:00-03:00' },
-  { match: 86, home: 'Austrália',     away: 'Egito',               kickoff: '2026-07-03T15:00:00-03:00' },
-  { match: 87, home: 'Argentina',     away: 'Cabo Verde',          kickoff: '2026-07-03T19:00:00-03:00' },
-  { match: 88, home: 'Colômbia',      away: 'Gana',                kickoff: '2026-07-03T22:30:00-03:00' },
+  { match: 86, home: 'Argentina',     away: 'Cabo Verde',          kickoff: '2026-07-03T19:00:00-03:00' },
+  { match: 87, home: 'Colômbia',      away: 'Gana',                kickoff: '2026-07-03T22:30:00-03:00' },
+  { match: 88, home: 'Austrália',     away: 'Egito',               kickoff: '2026-07-03T15:00:00-03:00' },
 ];
 
 // Ordem vertical do bracket por nº de partida (árvore oficial FIFA, fonte Wikipedia).
