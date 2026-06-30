@@ -2265,22 +2265,13 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 
   const scoreA = d.h ?? myPicks[m.id]?.home ?? '';
   const scoreB = d.a ?? myPicks[m.id]?.away ?? '';
-  const penA = d.penH ?? '';
-  const penB = d.penA ?? '';
-
   const na = scoreA !== '' ? parseInt(scoreA) : null;
   const nb = scoreB !== '' ? parseInt(scoreB) : null;
   const bothScore = na !== null && nb !== null;
   const draw = bothScore && na === nb;
-  const pa = penA !== '' ? parseInt(penA) : null;
-  const pb = penB !== '' ? parseInt(penB) : null;
-  const bothPen = pa !== null && pb !== null;
 
   let winner = pick;
-  if (!winner) {
-    if (bothScore && !draw) winner = na > nb ? 'home' : 'away';
-    else if (draw && bothPen && pa !== pb) winner = pa > pb ? 'home' : 'away';
-  }
+  if (!winner && bothScore && !draw) winner = na > nb ? 'home' : 'away';
 
   const t = darkMode ? {
     pageBg: 'radial-gradient(1200px 620px at 50% -8%,#16203a 0%,#090d18 58%,#05070e 100%)',
@@ -2327,7 +2318,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
   let statusText = 'Aguardando resultado';
   if (isLive) statusText = [liveLabel, liveElapsed].filter(Boolean).join(' · ');
   else if (winner) statusText = `${winner === 'home' ? m.home : m.away} avança para a próxima fase`;
-  else if (draw) statusText = 'Empate — defina os pênaltis';
+  else if (draw) statusText = 'Empate — toque em quem avança';
   else if (bothScore) statusText = 'Resultado registrado';
 
   return (
@@ -2445,17 +2436,6 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
                 {scoreA !== '' ? 'seu palpite' : 'sem palpite'}
               </div>
             )}
-            {draw && (
-              <input
-                type="text" inputMode="numeric" placeholder="–" value={penA}
-                onChange={(e) => setDraftScore(m.id, 'penH', e.target.value.replace(/\D/g, '').slice(0, 2))}
-                style={{
-                  width: 48, height: 30, textAlign: 'center', borderRadius: 8, border: `1px dashed ${t.slabBorder}`,
-                  background: 'transparent', color: t.sub, fontFamily: 'Oswald', fontWeight: 600, fontSize: 15, outline: 'none',
-                  opacity: draw ? 1 : 0, transition: 'opacity .3s ease',
-                }}
-              />
-            )}
           </div>
 
           {/* VS Coin */}
@@ -2510,7 +2490,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
             {draw && <div style={{
               fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.2em',
               color: t.sub, textAlign: 'center', height: 14,
-            }}>PÊNALTIS</div>}
+            }}>TOQUE EM QUEM AVANÇA</div>}
           </div>
 
           {/* Team B */}
@@ -2566,17 +2546,6 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
               <div style={{ fontFamily: 'Barlow Semi Condensed', fontWeight: 600, fontSize: 10, letterSpacing: '.18em', color: t.sub, textTransform: 'uppercase' }}>
                 {scoreB !== '' ? 'seu palpite' : 'sem palpite'}
               </div>
-            )}
-            {draw && (
-              <input
-                type="text" inputMode="numeric" placeholder="–" value={penB}
-                onChange={(e) => setDraftScore(m.id, 'penA', e.target.value.replace(/\D/g, '').slice(0, 2))}
-                style={{
-                  width: 48, height: 30, textAlign: 'center', borderRadius: 8, border: `1px dashed ${t.slabBorder}`,
-                  background: 'transparent', color: t.sub, fontFamily: 'Oswald', fontWeight: 600, fontSize: 15, outline: 'none',
-                  opacity: draw ? 1 : 0, transition: 'opacity .3s ease',
-                }}
-              />
             )}
           </div>
         </div>
