@@ -4,8 +4,8 @@ import { supabase } from './supabase.js';
 /* ============================================================
    BOLÃO DA COPA 2026 — versão definitiva (Supabase + Vercel)
    Placar exato 3 pts | vencedor/empate 1 pt
-   Janela do palpite (abre 24h antes, fecha 15 min antes)
-   é validada NO SERVIDOR — aqui na tela é só informação.
+   Janela do palpite: grupos abrem 24h antes; mata-mata fica liberado
+   desde já (confrontos definidos). Em ambos, fecha 15 min antes do jogo.
    ============================================================ */
 
 const LOCK_MIN = 15;
@@ -155,8 +155,12 @@ const fmtDay = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: TZ, we
 const fmtTime = (d) => new Date(d).toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 const dayKey = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: TZ });
 
+const isKOMatch = (m) => !!m && m.phase !== 'Grupos';
 const lockTime = (m) => new Date(m.kickoff).getTime() - LOCK_MIN * 60 * 1000;
-const openTime = (m) => new Date(m.kickoff).getTime() - OPEN_HOURS * 60 * 60 * 1000;
+// Mata-mata: liberado pra palpitar desde já (sem a regra de abrir só 24h antes),
+// já que os confrontos estão todos definidos. Grupos: abre 24h antes.
+// Em ambos, fecha 15 min antes do jogo.
+const openTime = (m) => isKOMatch(m) ? -Infinity : new Date(m.kickoff).getTime() - OPEN_HOURS * 60 * 60 * 1000;
 const isLocked = (m, now) => now >= lockTime(m);
 const isOpenWindow = (m, now) => now >= openTime(m) && now < lockTime(m);
 
@@ -1336,7 +1340,7 @@ export default function App() {
         <div className="bl-rules">
           <span className="bl-chip">Placar exato <b>3 pts</b></span>
           <span className="bl-chip">Vencedor/empate <b>1 pt</b></span>
-          <span className="bl-chip">Abre <b>24h</b> antes · fecha <b>15 min</b> antes</span>
+          <span className="bl-chip">Mata-mata liberado · fecha <b>15 min</b> antes</span>
         </div>
         {me && (
           <div style={{ marginTop: 10, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
