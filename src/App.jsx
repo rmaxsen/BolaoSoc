@@ -2283,8 +2283,10 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
   const cdAbre = beforeWindow ? fmtCountdown(openTime(m) - now) : null;
   const cdFecha = inWindow ? fmtCountdown(lockTime(m) - now) : null;
 
-  const scoreA = d.h ?? myPicks[m.id]?.home ?? '';
-  const scoreB = d.a ?? myPicks[m.id]?.away ?? '';
+  // Se o campo já foi tocado (a chave existe no rascunho), respeita o rascunho —
+  // inclusive quando foi apagado (null → ''). Só cai no palpite salvo se nunca mexeu.
+  const scoreA = 'h' in d ? (d.h ?? '') : (myPicks[m.id]?.home ?? '');
+  const scoreB = 'a' in d ? (d.a ?? '') : (myPicks[m.id]?.away ?? '');
   const na = scoreA !== '' ? parseInt(scoreA) : null;
   const nb = scoreB !== '' ? parseInt(scoreB) : null;
   const bothScore = na !== null && nb !== null;
