@@ -1108,6 +1108,14 @@ export default function App() {
   }, []);
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 20000); return () => clearInterval(t); }, []);
+  // No mobile o setInterval congela com o app em segundo plano. Ao voltar o foco,
+  // atualiza o relógio na hora — senão a trava do palpite pode ficar "presa" no passado.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') setNow(Date.now()); };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh); };
+  }, []);
 
   useEffect(() => {
     for (const m of matches) {
@@ -1468,7 +1476,7 @@ export default function App() {
                 liveScores={liveScores} pedroVotes={pedroVotes} onPedroVote={savePedroVote} />
             )}
             {tab === 'ranking' && <RankingTab ranking={ranking} liveRanking={liveRanking} meSlug={me.slug} results={results} worldChampion={worldChampion} rankHistory={rankHistory} picksAll={picksAll} />}
-            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} />}
+            {tab === 'tabela' && <TabelaTab active={tab === 'tabela'} matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} now={now} />}
             {tab === 'artilharia' && <ArtilhariaTab me={me} myBootPick={bootPicks[me?.slug] || null} bootWinner={bootWinner} onSaveBootPick={saveBootPick} busy={busy} bootPicks={bootPicks} users={users} matches={matches} results={results} />}
             {tab === 'admin' && me.isAdmin && (
               <AdminTab me={me} matches={matches} results={results} users={users} now={now}
@@ -2331,7 +2339,7 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
 }
 
 /* ============================ Knockout Showcase (Cinema) ============================ */
-function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {} }) {
+function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}, setDraftScore = () => {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {}, now: nowProp }) {
   const [idx, setIdx] = useState(0);
   const [showBracket, setShowBracket] = useState(false);
   const idxInit = useRef(false);
@@ -2355,11 +2363,13 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
   const d = draft[m.id] || {};
   const pick = d.qualifier ?? myPicks[m.id]?.qualifier ?? null;
 
-  const now = Date.now();
+  const now = nowProp ?? Date.now();
   const locked = isLocked(m, now);
   const inWindow = isOpenWindow(m, now);
   const beforeWindow = now < openTime(m);
-  const canPick = inWindow && !res && !isLive;
+  // Trava também se o jogo já começou (relógio) ou está ao vivo — nunca deixar
+  // editar durante a partida, mesmo que o feed ao vivo falhe.
+  const canPick = inWindow && !res && !isLive && now < new Date(m.kickoff).getTime();
 
   const fmtCountdown = (ms) => {
     if (ms <= 0) return null;
@@ -2796,7 +2806,7 @@ function KnockoutShowcase({ matches = [], results = {}, draft = {}, myPicks = {}
 }
 
 /* ============================ Tabela (standings da API) ============================ */
-function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {} }) {
+function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () => {}, myPicks = {}, darkMode = false, savePicks = () => {}, busy = false, users = [], picksAll = {}, me = null, liveScores = {}, now = Date.now() }) {
   const [state, setState] = useState({ loading: true });
   const [groupsCollapsed, setGroupsCollapsed] = useState(false);
 
@@ -2824,7 +2834,7 @@ function TabelaTab({ matches = [], results = {}, draft = {}, setDraftScore = () 
     return PHASES_KO.map((ph) => ({ phase: ph, items: grouped[ph] || [] })).filter((g) => g.items.length > 0);
   })();
 
-  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} />;
+  if (hasKO) return <KnockoutShowcase matches={matches} results={results} draft={draft} setDraftScore={setDraftScore} myPicks={myPicks} darkMode={darkMode} savePicks={savePicks} busy={busy} users={users} picksAll={picksAll} me={me} liveScores={liveScores} now={now} />;
 
   return (
     <section aria-label="Tabela dos grupos">
