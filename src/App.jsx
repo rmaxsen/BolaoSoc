@@ -3254,7 +3254,16 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
   const [scanningKo, setScanningKo] = useState(false);
   const [koFound, setKoFound] = useState([]);
   const [genList, setGenList] = useState(null); // confrontos definidos gerados do chaveamento
+  const [koEditMatch, setKoEditMatch] = useState(''); const [koEditTime, setKoEditTime] = useState('');
   const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
+
+  // kickoff (instante UTC no banco) -> 'YYYY-MM-DDTHH:mm' em Brasília, p/ o input datetime-local
+  const kickoffToLocal = (iso) => {
+    try {
+      const p = new Intl.DateTimeFormat('sv-SE', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+      return p.replace(' ', 'T');
+    } catch { return ''; }
+  };
 
   async function fetchEspnScore(m) {
     setFetching((f) => ({ ...f, [m.id]: true }));
@@ -3410,6 +3419,35 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
             </div>
           );
         })}
+      </div>
+
+      <div className="bl-panel">
+        <h2 className="bl-display">Corrigir horário de um jogo</h2>
+        <p className="sub">Se um jogo ficou com o horário errado (não deixa lançar resultado / não trava o palpite na hora certa), ajuste aqui. Horário de Brasília. Isso <b>não</b> apaga palpites.</p>
+        <div className="bl-field">
+          <label htmlFor="ke-match">Jogo</label>
+          <select id="ke-match" className="bl-in" value={koEditMatch} onChange={(e) => {
+            const id = e.target.value; setKoEditMatch(id);
+            const mm = matches.find((x) => x.id === id);
+            setKoEditTime(mm ? kickoffToLocal(mm.kickoff) : '');
+          }}>
+            <option value="">— escolher —</option>
+            {[...matches].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)).map((mm) => (
+              <option key={mm.id} value={mm.id}>{mm.home} × {mm.away} · {fmtDay(mm.kickoff)} {fmtTime(mm.kickoff)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="bl-field">
+          <label htmlFor="ke-time">Novo horário (Brasília)</label>
+          <input id="ke-time" type="datetime-local" className="bl-in" value={koEditTime} onChange={(e) => setKoEditTime(e.target.value)} />
+        </div>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || !koEditMatch || !koEditTime}
+          onClick={() => run(async () => {
+            await rpc('set_match_kickoff', { p_name: me.name, p_pin: me.pin, p_match: koEditMatch, p_kickoff: `${koEditTime}:00-03:00` });
+            setKoEditMatch(''); setKoEditTime('');
+          }, 'Horário corrigido ✅')}>
+          Salvar horário
+        </button>
       </div>
 
       <div className="bl-panel">
