@@ -544,14 +544,21 @@ function useLiveScores(matches, me, rpcFn) {
           const kickoffDateBR = new Date(m.kickoff).toLocaleDateString('pt-BR', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
           if (!evDateBR || evDateBR !== kickoffDateBR) continue;
           const hNames = espnTeamNames(homeComp); const aNames = espnTeamNames(awayComp);
-          if (hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n))) {
+          // Casa nas DUAS orientações: a ESPN pode listar mandante/visitante ao
+          // contrário do nosso cadastro. Se vier invertido, trocamos o placar pra
+          // ficar na orientação do jogo no banco (senão o placar/pontuação sai trocado).
+          const straight = hNames.some((n) => matchesTeam(m.home, n)) && aNames.some((n) => matchesTeam(m.away, n));
+          const swapped  = hNames.some((n) => matchesTeam(m.away, n)) && aNames.some((n) => matchesTeam(m.home, n));
+          if (straight || swapped) {
             const short = espnStatus(comp);
             // ignora jogos não iniciados (status NS)
             if (short === 'NS') continue;
-            const h = homeComp?.score != null ? Number(homeComp.score) : null;
-            const a = awayComp?.score != null ? Number(awayComp.score) : null;
+            const espnH = homeComp?.score != null ? Number(homeComp.score) : null;
+            const espnA = awayComp?.score != null ? Number(awayComp.score) : null;
+            const h = straight ? espnH : espnA;
+            const a = straight ? espnA : espnH;
             newScores[m.id] = { home: h, away: a, status: short, elapsed: comp.status?.displayClock || null };
-            // auto-save quando FT e admin logado
+            // auto-save quando FT e admin logado (na orientação do nosso cadastro)
             if (short === 'FT' && me?.isAdmin && h != null && a != null && !autoSaved.current.has(m.id)) {
               autoSaved.current.add(m.id);
               rpcFn('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: Math.round(h), p_away: Math.round(a) }).catch(() => {});
@@ -3259,8 +3266,13 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
       const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
       const statusName = comp.status?.type?.name || '';
       if (statusName === 'STATUS_SCHEDULED') { onError('Jogo ainda não começou.'); return; }
-      const h = homeComp.score != null ? String(Math.round(Number(homeComp.score))) : '';
-      const a = awayComp.score != null ? String(Math.round(Number(awayComp.score))) : '';
+      // A ESPN pode listar os times ao contrário do nosso cadastro — reorienta
+      // pra não gravar o placar trocado.
+      const swapped = espnTeamNames(homeComp).some((n) => matchesTeam(m.away, n)) && !espnTeamNames(homeComp).some((n) => matchesTeam(m.home, n));
+      const hc = swapped ? awayComp : homeComp;
+      const ac = swapped ? homeComp : awayComp;
+      const h = hc.score != null ? String(Math.round(Number(hc.score))) : '';
+      const a = ac.score != null ? String(Math.round(Number(ac.score))) : '';
       setVals((x) => ({ ...x, [m.id]: { h, a } }));
     } catch (e) { onError('Erro ao buscar placar da ESPN.'); }
     finally { setFetching((f) => ({ ...f, [m.id]: false })); }
@@ -3282,8 +3294,12 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
         if (statusName !== 'STATUS_FINAL' && statusName !== 'STATUS_FULL_TIME') { skipped++; continue; }
         const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
         const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
-        const h = homeComp?.score != null ? Math.round(Number(homeComp.score)) : null;
-        const a = awayComp?.score != null ? Math.round(Number(awayComp.score)) : null;
+        // Reorienta se a ESPN listar os times ao contrário do nosso cadastro.
+        const swapped = espnTeamNames(homeComp).some((n) => matchesTeam(m.away, n)) && !espnTeamNames(homeComp).some((n) => matchesTeam(m.home, n));
+        const hc = swapped ? awayComp : homeComp;
+        const ac = swapped ? homeComp : awayComp;
+        const h = hc?.score != null ? Math.round(Number(hc.score)) : null;
+        const a = ac?.score != null ? Math.round(Number(ac.score)) : null;
         if (h == null || a == null) { skipped++; continue; }
         try {
           await rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: h, p_away: a });
