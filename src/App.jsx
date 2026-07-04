@@ -84,6 +84,92 @@ const REAL_R32_FIXTURES = [
 const BRACKET_LEFT_ORDER  = [74, 77, 73, 75, 83, 84, 81, 82];
 const BRACKET_RIGHT_ORDER = [76, 78, 79, 80, 86, 88, 85, 87];
 
+// Árvore oficial do mata-mata: cada partida a partir das oitavas recebe os
+// VENCEDORES de duas partidas anteriores (feeders). 103 (3º lugar) recebe os
+// PERDEDORES das semis. Números de partida seguem a árvore FIFA 2026.
+const KO_TREE = [
+  { num: 89, phase: 'Oitavas de final', feeders: [74, 77] },
+  { num: 90, phase: 'Oitavas de final', feeders: [73, 75] },
+  { num: 91, phase: 'Oitavas de final', feeders: [76, 78] },
+  { num: 92, phase: 'Oitavas de final', feeders: [79, 80] },
+  { num: 93, phase: 'Oitavas de final', feeders: [83, 84] },
+  { num: 94, phase: 'Oitavas de final', feeders: [81, 82] },
+  { num: 95, phase: 'Oitavas de final', feeders: [86, 88] },
+  { num: 96, phase: 'Oitavas de final', feeders: [85, 87] },
+  { num: 97, phase: 'Quartas de final', feeders: [89, 90] },
+  { num: 98, phase: 'Quartas de final', feeders: [93, 94] },
+  { num: 99, phase: 'Quartas de final', feeders: [91, 92] },
+  { num: 100, phase: 'Quartas de final', feeders: [95, 96] },
+  { num: 101, phase: 'Semifinal', feeders: [97, 98] },
+  { num: 102, phase: 'Semifinal', feeders: [99, 100] },
+  { num: 103, phase: '3º lugar', feeders: [101, 102], losers: true },
+  { num: 104, phase: 'Final', feeders: [101, 102] },
+];
+
+// Data/hora oficial padrão (Brasília) por partida — editável na tela do admin
+// antes de cadastrar, caso a FIFA ajuste horário.
+const KO_DEFAULT_KICKOFF = {
+  89: '2026-07-04T13:00', 90: '2026-07-04T17:00', 91: '2026-07-05T13:00', 92: '2026-07-05T17:00',
+  93: '2026-07-06T16:00', 94: '2026-07-06T20:00', 95: '2026-07-07T16:00', 96: '2026-07-07T20:00',
+  97: '2026-07-09T16:00', 98: '2026-07-10T16:00', 99: '2026-07-10T20:00', 100: '2026-07-11T16:00',
+  101: '2026-07-14T16:00', 102: '2026-07-15T16:00', 103: '2026-07-18T16:00', 104: '2026-07-19T16:00',
+};
+
+// A partir dos resultados já lançados, descobre quais confrontos das próximas
+// fases JÁ TÊM os dois times definidos e ainda não existem no banco.
+function computeDefinedNextMatches(matches, results) {
+  const r32 = Object.fromEntries(REAL_R32_FIXTURES.map((f) => [f.match, f]));
+  const teqB = (a, b) => { if (!a || !b) return false; if (a === b) return true; return matchesTeam(a, b) || matchesTeam(b, a); };
+  const koRows = matches.filter((m) => PHASES_KO.includes(m.phase));
+  const findDb = (home, away) => koRows.find((m) =>
+    (teqB(m.home, home) && teqB(m.away, away)) || (teqB(m.home, away) && teqB(m.away, home)));
+
+  const teamsCache = {};
+  const teamsOf = (num) => {
+    if (num in teamsCache) return teamsCache[num];
+    teamsCache[num] = { home: null, away: null }; // sentinela anti-loop
+    let out;
+    if (r32[num]) out = { home: r32[num].home, away: r32[num].away };
+    else {
+      const node = KO_TREE.find((n) => n.num === num);
+      if (!node) out = { home: null, away: null };
+      else {
+        const [fa, fb] = node.feeders;
+        out = node.losers
+          ? { home: loserOf(fa), away: loserOf(fb) }
+          : { home: winnerOf(fa), away: winnerOf(fb) };
+      }
+    }
+    teamsCache[num] = out;
+    return out;
+  };
+  const winnerOf = (num) => {
+    const { home, away } = teamsOf(num);
+    if (!home || !away) return null;
+    const m = findDb(home, away);
+    const res = m ? results[m.id] : null;
+    if (!res) return null;
+    const w = res.qualifier || (res.home > res.away ? 'home' : res.away > res.home ? 'away' : null);
+    if (!w) return null;
+    return w === 'home' ? m.home : m.away; // nome real do time que avançou
+  };
+  const loserOf = (num) => {
+    const win = winnerOf(num);
+    if (!win) return null;
+    const { home, away } = teamsOf(num);
+    return teqB(win, home) ? away : home;
+  };
+
+  const out = [];
+  for (const node of KO_TREE) {
+    const { home, away } = teamsOf(node.num);
+    if (!home || !away) continue;      // ainda não definido
+    if (findDb(home, away)) continue;  // já existe no banco
+    out.push({ num: node.num, phase: node.phase, home, away, kickoff: KO_DEFAULT_KICKOFF[node.num] || '' });
+  }
+  return out;
+}
+
 /* ---------- Bandeiras reais (flagcdn) — código ISO por seleção ---------- */
 const FLAG_CODES = {
   'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr', 'Rep. Tcheca': 'cz',
@@ -3150,6 +3236,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
   const [fpUser, setFpUser] = useState(''); const [fpMatch, setFpMatch] = useState('');
   const [scanningKo, setScanningKo] = useState(false);
   const [koFound, setKoFound] = useState([]);
+  const [genList, setGenList] = useState(null); // confrontos definidos gerados do chaveamento
   const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
 
   async function fetchEspnScore(m) {
@@ -3328,6 +3415,56 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
             </>
           );
         })()}
+      </div>
+
+      <div className="bl-panel">
+        <h2 className="bl-display">Liberar próximos confrontos</h2>
+        <p className="sub">Conforme você lança os resultados, o chaveamento se preenche. Este botão descobre os confrontos das próximas fases que <b>já têm os dois times definidos</b> e ainda não foram cadastrados. Confira a data e cadastre — todo mundo já pode palpitar. (Empates no mata-mata: defina "quem avança" ao lançar o resultado, senão o próximo jogo não aparece.)</p>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy}
+          onClick={() => {
+            const list = computeDefinedNextMatches(matches, results);
+            setGenList(list);
+            if (list.length === 0) onError('Nenhum confronto novo definido ainda. Faltam resultados (ou "quem avança" em jogos empatados).');
+          }}>
+          🧩 Procurar confrontos definidos
+        </button>
+
+        {genList && genList.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <p className="sub" style={{ marginBottom: 8 }}><b>{genList.length} confronto(s) pronto(s) pra liberar:</b></p>
+            {genList.map((g, i) => (
+              <div key={g.num} style={{ padding: '10px 0', borderTop: '1px dashed rgba(32,48,31,.2)' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+                  <span style={{ color: 'var(--cinza)', fontWeight: 600 }}>{phaseLabel(g.phase)} · </span>
+                  <Flag team={g.home} size={16} /> {g.home} × {g.away} <Flag team={g.away} size={16} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input type="datetime-local" className="bl-in" style={{ flex: 1, fontSize: 14, padding: 8 }}
+                    value={g.kickoff}
+                    onChange={(e) => setGenList((L) => L.map((x, j) => j === i ? { ...x, kickoff: e.target.value } : x))} />
+                  <button className="bl-btn verde" style={{ fontSize: 12, padding: '8px 12px', whiteSpace: 'nowrap' }}
+                    disabled={busy || !g.kickoff}
+                    onClick={() => run(async () => {
+                      await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: g.phase, p_home: g.home, p_away: g.away, p_kickoff: `${g.kickoff}:00-03:00` });
+                      setGenList((L) => L.filter((_, j) => j !== i));
+                    }, `${g.home} × ${g.away} liberado ✅`)}>
+                    Liberar
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button className="bl-btn amarelo" style={{ width: '100%', marginTop: 12 }}
+              disabled={busy || genList.some((g) => !g.kickoff)}
+              onClick={() => run(async () => {
+                for (const g of genList) {
+                  await rpc('add_match', { p_name: me.name, p_pin: me.pin, p_phase: g.phase, p_home: g.home, p_away: g.away, p_kickoff: `${g.kickoff}:00-03:00` });
+                }
+                setGenList(null);
+              }, `${genList.length} confronto(s) liberado(s) ✅`)}>
+              Liberar todos ({genList.length})
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bl-panel">
