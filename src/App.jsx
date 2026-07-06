@@ -106,8 +106,8 @@ const KO_TREE = [
   { num: 104, phase: 'Final', feeders: [101, 102] },
 ];
 
-// Data/hora oficial padrão (Brasília) por partida — editável na tela do admin
-// antes de cadastrar, caso a FIFA ajuste horário.
+// Data aproximada por partida — usada só como DICA pra achar o jogo na ESPN
+// (o horário real é puxado da ESPN, no fuso certo). O horário aqui é ignorado.
 const KO_DEFAULT_KICKOFF = {
   89: '2026-07-04T13:00', 90: '2026-07-04T17:00', 91: '2026-07-05T13:00', 92: '2026-07-05T17:00',
   93: '2026-07-06T16:00', 94: '2026-07-06T20:00', 95: '2026-07-07T16:00', 96: '2026-07-07T20:00',
@@ -2276,17 +2276,33 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   // definido. Usa o jogo do banco quando existe; senão herda o vencedor da
   // rodada anterior (home = chave de cima, away = chave de baixo).
   const adv = (c) => (c && c.w ? (c.w === 'home' ? c.home : c.away) : null);
-  const merge = (db, fbHome, fbAway) => ({ home: db.home || fbHome, away: db.away || fbAway, w: db.w });
+
+  // Posiciona o jogo na fatia CERTA da árvore procurando pela dupla de times
+  // esperada (vencedores dos dois jogos que a alimentam) — NÃO por índice/ordem
+  // de cadastro, senão as fatias saem trocadas de lado. Orienta o time de cima
+  // (fbHome) como "home" pra as linhas do bracket não cruzarem.
+  const slot = (phase, fbHome, fbAway) => {
+    const mm = (mbp[phase] || []).find((x) =>
+      (teqB(x.home, fbHome) && teqB(x.away, fbAway)) || (teqB(x.home, fbAway) && teqB(x.away, fbHome)));
+    if (!mm) return { home: fbHome, away: fbAway, w: null };
+    const res = results[mm.id];
+    const rawW = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+    const sameOrient = fbHome ? teqB(mm.home, fbHome) : true;
+    const home = sameOrient ? mm.home : mm.away;
+    const away = sameOrient ? mm.away : mm.home;
+    const w = rawW ? (sameOrient ? rawW : (rawW === 'home' ? 'away' : 'home')) : null;
+    return { home, away, w };
+  };
 
   const L1 = Y1.map((_, i) => getR1(0, i));
   const R1 = Y1.map((_, i) => getR1(1, i));
-  const L2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', i),   adv(L1[i*2]), adv(L1[i*2+1])));
-  const R2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', 4+i), adv(R1[i*2]), adv(R1[i*2+1])));
-  const L3 = [0,1].map((i)     => merge(getM('Quartas de final', i),    adv(L2[i*2]), adv(L2[i*2+1])));
-  const R3 = [0,1].map((i)     => merge(getM('Quartas de final', 2+i),  adv(R2[i*2]), adv(R2[i*2+1])));
-  const L4 = merge(getM('Semifinal', 0), adv(L3[0]), adv(L3[1]));
-  const R4 = merge(getM('Semifinal', 1), adv(R3[0]), adv(R3[1]));
-  const FIN = merge(getM('Final', 0), adv(L4), adv(R4));
+  const L2 = [0,1,2,3].map((i) => slot('Oitavas de final', adv(L1[i*2]), adv(L1[i*2+1])));
+  const R2 = [0,1,2,3].map((i) => slot('Oitavas de final', adv(R1[i*2]), adv(R1[i*2+1])));
+  const L3 = [0,1].map((i)     => slot('Quartas de final',  adv(L2[i*2]), adv(L2[i*2+1])));
+  const R3 = [0,1].map((i)     => slot('Quartas de final',  adv(R2[i*2]), adv(R2[i*2+1])));
+  const L4 = slot('Semifinal', adv(L3[0]), adv(L3[1]));
+  const R4 = slot('Semifinal', adv(R3[0]), adv(R3[1]));
+  const FIN = slot('Final', adv(L4), adv(R4));
 
   return (
     <div onClick={onClose} style={{
@@ -3483,14 +3499,31 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
 
       <div className="bl-panel">
         <h2 className="bl-display">Liberar próximos confrontos</h2>
-        <p className="sub">Conforme você lança os resultados, o chaveamento se preenche. Este botão descobre os confrontos das próximas fases que <b>já têm os dois times definidos</b> e ainda não foram cadastrados. Confira a data e cadastre — todo mundo já pode palpitar. (Empates no mata-mata: defina "quem avança" ao lançar o resultado, senão o próximo jogo não aparece.)</p>
-        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy}
-          onClick={() => {
+        <p className="sub">Conforme você lança os resultados, o chaveamento se preenche. Este botão descobre os confrontos das próximas fases que <b>já têm os dois times definidos</b> e ainda não foram cadastrados. O <b>horário é puxado da ESPN</b> (fuso certo); confira e cadastre. (Empates no mata-mata: defina "quem avança" ao lançar o resultado, senão o próximo jogo não aparece.)</p>
+        <button className="bl-btn verde" style={{ width: '100%' }} disabled={busy || scanningKo}
+          onClick={async () => {
             const list = computeDefinedNextMatches(matches, results);
-            setGenList(list);
-            if (list.length === 0) onError('Nenhum confronto novo definido ainda. Faltam resultados (ou "quem avança" em jogos empatados).');
+            if (list.length === 0) { setGenList([]); onError('Nenhum confronto novo definido ainda. Faltam resultados (ou "quem avança" em jogos empatados).'); return; }
+            setScanningKo(true);
+            try {
+              // Puxa o horário REAL de cada jogo da ESPN (no fuso certo). Minha data
+              // serve de dica pra achar; se a ESPN não tiver, deixa em branco pra
+              // você preencher — melhor vazio do que um chute errado.
+              for (const g of list) {
+                let real = null;
+                for (const off of [0, 1, -1, 2]) {
+                  const d = new Date(`${g.kickoff || '2026-07-09T12:00'}:00-03:00`);
+                  d.setDate(d.getDate() + off);
+                  const ev = await findEspnEventForMatch(g.home, g.away, d.toISOString()).catch(() => null);
+                  if (ev?.date) { real = ev.date; break; }
+                }
+                g.kickoff = real ? kickoffToLocal(real) : '';
+              }
+              setGenList(list);
+            } catch (e) { onError('Erro ao buscar horários na ESPN.'); }
+            finally { setScanningKo(false); }
           }}>
-          🧩 Procurar confrontos definidos
+          {scanningKo ? '⏳ Buscando na ESPN…' : '🧩 Procurar confrontos definidos'}
         </button>
 
         {genList && genList.length > 0 && (
