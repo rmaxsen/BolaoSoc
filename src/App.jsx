@@ -240,6 +240,11 @@ const TZ = 'America/Sao_Paulo';
 const fmtDay = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: 'long' });
 const fmtTime = (d) => new Date(d).toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 const dayKey = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: TZ });
+// Mesmo dia (em Brasília)? Usado pra não casar o jogo errado da ESPN quando a
+// mesma seleção joga em datas diferentes.
+const sameDayBR = (a, b) => {
+  try { return dayKey(a) === dayKey(b); } catch { return false; }
+};
 
 const isKOMatch = (m) => !!m && m.phase !== 'Grupos';
 const lockTime = (m) => new Date(m.kickoff).getTime() - LOCK_MIN * 60 * 1000;
@@ -260,7 +265,7 @@ function fmtCountdown(ms) {
 }
 
 function points(pick, res, isKO = false) {
-  if (!pick || !res) return null;
+  if (!pick || !res || pick.home == null || pick.away == null || res.home == null || res.away == null) return null;
   const scoreAxis = (() => {
     if (pick.home === res.home && pick.away === res.away) return 3;
     return Math.sign(pick.home - pick.away) === Math.sign(res.home - res.away) ? 1 : 0;
@@ -369,13 +374,17 @@ async function fetchStandings() {
 
 function espnStatus(comp) {
   const name = comp?.status?.type?.name || '';
+  const state = comp?.status?.type?.state || '';
   if (name === 'STATUS_FINAL' || name === 'STATUS_FULL_TIME') return 'FT';
   if (name === 'STATUS_HALFTIME') return 'HT';
   if (name === 'STATUS_FIRST_HALF') return '1H';
   if (name === 'STATUS_SECOND_HALF') return '2H';
-  if (name === 'STATUS_EXTRA_TIME') return 'ET';
-  if (name === 'STATUS_SHOOTOUT') return 'P';
+  if (name === 'STATUS_EXTRA_TIME' || name === 'STATUS_FIRST_EXTRA_TIME' || name === 'STATUS_SECOND_EXTRA_TIME' || name === 'STATUS_END_OF_EXTRATIME') return 'ET';
+  if (name === 'STATUS_SHOOTOUT' || name === 'STATUS_PENALTIES') return 'P';
   if (name === 'STATUS_IN_PROGRESS') return 'LIVE';
+  // fallback: qualquer status "em andamento" (state='in') que a ESPN emita e não
+  // esteja mapeado acima — evita que o jogo ao vivo suma da tela.
+  if (state === 'in') return 'LIVE';
   return 'NS';
 }
 
@@ -558,8 +567,12 @@ function useLiveScores(matches, me, rpcFn) {
             const h = straight ? espnH : espnA;
             const a = straight ? espnA : espnH;
             newScores[m.id] = { home: h, away: a, status: short, elapsed: comp.status?.displayClock || null };
-            // auto-save quando FT e admin logado (na orientação do nosso cadastro)
-            if (short === 'FT' && me?.isAdmin && h != null && a != null && !autoSaved.current.has(m.id)) {
+            // auto-save quando FT e admin logado (na orientação do nosso cadastro).
+            // NÃO auto-salva empate de mata-mata: quem avança sai nos pênaltis, que
+            // a ESPN não dá no placar — o admin lança à mão com o "quem avança"
+            // (senão o bônus de +2 fica zerado pra todo mundo).
+            const isKoDraw = m.phase !== 'Grupos' && Math.round(h) === Math.round(a);
+            if (short === 'FT' && me?.isAdmin && h != null && a != null && !isKoDraw && !autoSaved.current.has(m.id)) {
               autoSaved.current.add(m.id);
               rpcFn('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: Math.round(h), p_away: Math.round(a) }).catch(() => {});
             }
@@ -1323,7 +1336,7 @@ export default function App() {
       const champHit = worldChampion && champTeam === worldChampion;
       if (champHit) total += CHAMPION_PTS;
       const bootPlayer = bootPicks[u.slug] || null;
-      const bootHit = bootWinner && bootPlayer && bootPlayer.toLowerCase() === bootWinner.toLowerCase();
+      const bootHit = bootWinner && bootPlayer && norm(bootPlayer) === norm(bootWinner);
       if (bootHit) total += BOOT_PTS;
       return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores, champTeam, champHit, bootPlayer, bootHit };
     });
@@ -1372,7 +1385,7 @@ export default function App() {
       }
       const champHit = worldChampion && champPicks[u.slug] === worldChampion;
       if (champHit) total += CHAMPION_PTS;
-      const bootHit = bootWinner && bootPicks[u.slug] && bootPicks[u.slug].toLowerCase() === bootWinner.toLowerCase();
+      const bootHit = bootWinner && bootPicks[u.slug] && norm(bootPicks[u.slug]) === norm(bootWinner);
       if (bootHit) total += BOOT_PTS;
       return { slug: u.slug, name: u.name, avatar_url: u.avatar_url || null, total, exatos, vencedores };
     });
@@ -2200,9 +2213,13 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
       (teqB(m.home,home)&&teqB(m.away,away))||(teqB(m.home,away)&&teqB(m.away,home))
     );
     const res = m ? results[m.id] : null;
-    const w = res?.qualifier||(res?.home>res?.away?'home':res?.away>res?.home?'away':null);
+    const rawW = res?.qualifier||(res?.home>res?.away?'home':res?.away>res?.home?'away':null);
+    // Se o jogo no banco está com home/away invertido vs o seed, reflipa o vencedor
+    // também (senão o bracket sobe o PERDEDOR). Espelha a lógica de `slot`.
+    const sameOrient = m ? teqB(m.home, home) : true;
+    const w = rawW ? (sameOrient ? rawW : (rawW === 'home' ? 'away' : 'home')) : null;
     // Use DB match names when available (so flags render correctly)
-    return { home: m ? (teqB(m.home,home) ? m.home : m.away) : home, away: m ? (teqB(m.home,home) ? m.away : m.home) : away, w };
+    return { home: m ? (sameOrient ? m.home : m.away) : home, away: m ? (sameOrient ? m.away : m.home) : away, w };
   };
   const getM = (phase, i) => {
     const m = (mbp[phase]||[])[i];
@@ -3060,7 +3077,7 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
           <div style={{ fontSize: 11, color: 'var(--cinza)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Palpites da galera</div>
           {users.filter(u => bootPicks[u.slug]).sort((a, b) => a.name.localeCompare(b.name)).map(u => {
             const isLeader = leader && bootPicks[u.slug]?.toLowerCase() === leader.name.toLowerCase();
-            const isWinner = bootWinner && bootPicks[u.slug]?.toLowerCase() === bootWinner.toLowerCase();
+            const isWinner = bootWinner && bootPicks[u.slug] && norm(bootPicks[u.slug]) === norm(bootWinner);
             return (
               <div key={u.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 8px', borderBottom: '1px solid rgba(32,48,31,.07)', background: isLeader && !bootWinner ? 'rgba(255,198,41,.1)' : 'transparent', borderRadius: 4 }}>
                 <span style={{ color: 'var(--cinza)' }}>{u.name}</span>
@@ -3286,6 +3303,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
     try {
       const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
       if (!ev) { onError('Jogo não encontrado na ESPN ainda.'); return; }
+      if (ev.date && !sameDayBR(ev.date, m.kickoff)) { onError('O jogo achado na ESPN é de outra data — confira o horário do jogo antes.'); return; }
       const comp = ev.competitions[0];
       const homeComp = comp.competitors.find((c) => c.homeAway === 'home') || comp.competitors[0];
       const awayComp = comp.competitors.find((c) => c.homeAway === 'away') || comp.competitors[1];
@@ -3314,6 +3332,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
         if (['1H','2H','HT','ET','P','LIVE','INT','BT'].includes(liveScores?.[m.id]?.status)) { skipped++; continue; }
         const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
         if (!ev) { skipped++; continue; }
+        if (ev.date && !sameDayBR(ev.date, m.kickoff)) { skipped++; continue; } // evita casar jogo de outra data
         const comp = ev.competitions[0];
         const statusName = comp?.status?.type?.name || '';
         if (statusName !== 'STATUS_FINAL' && statusName !== 'STATUS_FULL_TIME') { skipped++; continue; }
@@ -3346,10 +3365,29 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
       for (let d = new Date('2026-06-29'); d <= new Date('2026-07-19'); d.setUTCDate(d.getUTCDate()+1))
         dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
 
-      const phaseByRound = {
-        'Round of 32':'32 avos de final','Round of 16':'Oitavas de final',
-        'Quarterfinals':'Quartas de final','Semifinals':'Semifinal',
-        'Third Place':'3º lugar','Final':'Final',
+      // Fase pelo cabeçalho da ESPN (tolerante a variações). Cuidado com a ordem:
+      // 'quarterfinals'/'semifinals' contêm 'final', então checa-se antes.
+      const phaseFromHeadline = (h) => {
+        const s = (h || '').toLowerCase();
+        if (!s) return null;
+        if (s.includes('round of 32') || s.includes('play-off') || s.includes('playoff')) return '32 avos de final';
+        if (s.includes('round of 16') || s.includes('last 16')) return 'Oitavas de final';
+        if (s.includes('quarter')) return 'Quartas de final';
+        if (s.includes('semi')) return 'Semifinal';
+        if (s.includes('third') || s.includes('3rd')) return '3º lugar';
+        if (s.includes('final')) return 'Final';
+        return null;
+      };
+      // Fallback confiável: a fase pela DATA do jogo (janelas fixas da Copa 2026, Brasília).
+      const phaseFromDate = (iso) => {
+        if (!iso) return '32 avos de final';
+        const ymd = new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ });
+        if (ymd <= '2026-07-03') return '32 avos de final';
+        if (ymd <= '2026-07-08') return 'Oitavas de final';
+        if (ymd <= '2026-07-12') return 'Quartas de final';
+        if (ymd <= '2026-07-16') return 'Semifinal';
+        if (ymd === '2026-07-18') return '3º lugar';
+        return 'Final';
       };
 
       for (const ds of dates) {
@@ -3362,8 +3400,8 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
           const homeName = home.team?.displayName || home.team?.name || '';
           const awayName = away.team?.displayName || away.team?.name || '';
           const round = ev.notes?.[0]?.headline || comp.notes?.[0]?.headline || '';
-          const phase = phaseByRound[round] || '32 avos de final';
           const kickoff = comp.startDate || ev.date;
+          const phase = phaseFromHeadline(round) || phaseFromDate(kickoff);
           // Verifica se já existe no BD
           const alreadyIn = matches.some(m =>
             PHASES_KO.includes(m.phase) &&
