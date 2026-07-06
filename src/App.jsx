@@ -3287,6 +3287,7 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
   const [scanningKo, setScanningKo] = useState(false);
   const [koFound, setKoFound] = useState([]);
   const [genList, setGenList] = useState(null); // confrontos definidos gerados do chaveamento
+  const [showLancados, setShowLancados] = useState(false); // recolher resultados já lançados
   const [koEditMatch, setKoEditMatch] = useState(''); const [koEditTime, setKoEditTime] = useState('');
   const [fpH, setFpH] = useState(''); const [fpA, setFpA] = useState('');
 
@@ -3442,37 +3443,56 @@ function AdminTab({ me, matches, results, users, now, worldChampion, liveScores 
         </div>
         <p className="sub">Aparecem os jogos que já começaram. Placar do tempo normal + prorrogação (sem pênaltis). Deixe vazio e OK para apagar.</p>
         {started.length === 0 && <div className="bl-info">Nenhum jogo começou ainda.</div>}
-        {[...started].reverse().map((m) => {
-          const r = results[m.id]; const v = vals[m.id] || {};
+        {(() => {
+          const startedRev = [...started].reverse();
+          const pend = startedRev.filter((m) => !results[m.id]);
+          const done = startedRev.filter((m) => results[m.id]);
+          const resultRow = (m) => {
+            const r = results[m.id]; const v = vals[m.id] || {};
+            return (
+              <div className="bl-admin-row" key={m.id}>
+                <span className="t"><Flag team={m.home} size={20} /> {m.home} × {m.away} <Flag team={m.away} size={20} /><br />
+                  <small style={{ color: 'var(--cinza)' }}>{fmtDay(m.kickoff)} · {fmtTime(m.kickoff)}{r ? ` · lançado ${r.home}×${r.away}` : ''}</small>
+                </span>
+                <button className="bl-okbtn" style={{ background: 'var(--bandeira)', fontSize: 11, padding: '4px 7px' }}
+                  disabled={busy || fetching[m.id]} onClick={() => fetchEspnScore(m)}>
+                  {fetching[m.id] ? '…' : '⚽ESPN'}
+                </button>
+                <input aria-label={`Gols ${m.home}`} inputMode="numeric" value={v.h ?? (r ? String(r.home) : '')} onChange={(e) => setV(m.id, 'h', e.target.value)} />
+                <span style={{ textAlign: 'center' }}>×</span>
+                <input aria-label={`Gols ${m.away}`} inputMode="numeric" value={v.a ?? (r ? String(r.away) : '')} onChange={(e) => setV(m.id, 'a', e.target.value)} />
+                {m.phase !== 'Grupos' && (
+                  <select value={v.qualifier ?? (r?.qualifier || '')} onChange={(e) => setV(m.id, 'qualifier', e.target.value)}
+                    style={{ fontSize: 11, padding: '2px 4px' }}>
+                    <option value="">quem avança?</option>
+                    <option value="home">{m.home}</option>
+                    <option value="away">{m.away}</option>
+                  </select>
+                )}
+                <button className="bl-okbtn" disabled={busy} onClick={() => {
+                  const h = v.h ?? (r ? String(r.home) : ''); const a = v.a ?? (r ? String(r.away) : '');
+                  if (h === '' && a === '') return run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: null, p_away: null }), 'Resultado removido');
+                  if (h === '' || a === '') return;
+                  run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: parseInt(h, 10), p_away: parseInt(a, 10), p_qualifier: vals[m.id]?.qualifier || null }), 'Resultado salvo ✅');
+                }}>OK</button>
+              </div>
+            );
+          };
           return (
-            <div className="bl-admin-row" key={m.id}>
-              <span className="t"><Flag team={m.home} size={20} /> {m.home} × {m.away} <Flag team={m.away} size={20} /><br />
-                <small style={{ color: 'var(--cinza)' }}>{fmtDay(m.kickoff)} · {fmtTime(m.kickoff)}{r ? ` · lançado ${r.home}×${r.away}` : ''}</small>
-              </span>
-              <button className="bl-okbtn" style={{ background: 'var(--bandeira)', fontSize: 11, padding: '4px 7px' }}
-                disabled={busy || fetching[m.id]} onClick={() => fetchEspnScore(m)}>
-                {fetching[m.id] ? '…' : '⚽ESPN'}
-              </button>
-              <input aria-label={`Gols ${m.home}`} inputMode="numeric" value={v.h ?? (r ? String(r.home) : '')} onChange={(e) => setV(m.id, 'h', e.target.value)} />
-              <span style={{ textAlign: 'center' }}>×</span>
-              <input aria-label={`Gols ${m.away}`} inputMode="numeric" value={v.a ?? (r ? String(r.away) : '')} onChange={(e) => setV(m.id, 'a', e.target.value)} />
-              {m.phase !== 'Grupos' && (
-                <select value={v.qualifier ?? (r?.qualifier || '')} onChange={(e) => setV(m.id, 'qualifier', e.target.value)}
-                  style={{ fontSize: 11, padding: '2px 4px' }}>
-                  <option value="">quem avança?</option>
-                  <option value="home">{m.home}</option>
-                  <option value="away">{m.away}</option>
-                </select>
+            <>
+              {pend.length === 0 && done.length > 0 && <div className="bl-info">Tudo lançado! ✅</div>}
+              {pend.map(resultRow)}
+              {done.length > 0 && (
+                <div style={{ marginTop: pend.length ? 14 : 4 }}>
+                  <button className="bl-mini" style={{ fontWeight: 800 }} onClick={() => setShowLancados((s) => !s)}>
+                    {showLancados ? '▾' : '▸'} {done.length} resultado{done.length > 1 ? 's' : ''} já lançado{done.length > 1 ? 's' : ''}
+                  </button>
+                  {showLancados && done.map(resultRow)}
+                </div>
               )}
-              <button className="bl-okbtn" disabled={busy} onClick={() => {
-                const h = v.h ?? (r ? String(r.home) : ''); const a = v.a ?? (r ? String(r.away) : '');
-                if (h === '' && a === '') return run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: null, p_away: null }), 'Resultado removido');
-                if (h === '' || a === '') return;
-                run(() => rpc('set_result', { p_name: me.name, p_pin: me.pin, p_match: m.id, p_home: parseInt(h, 10), p_away: parseInt(a, 10), p_qualifier: vals[m.id]?.qualifier || null }), 'Resultado salvo ✅');
-              }}>OK</button>
-            </div>
+            </>
           );
-        })}
+        })()}
       </div>
 
       <div className="bl-panel">
