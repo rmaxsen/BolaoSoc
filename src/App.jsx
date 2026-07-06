@@ -2276,17 +2276,33 @@ function BracketOverlay({ onClose, matches = [], results = {}, darkMode = false,
   // definido. Usa o jogo do banco quando existe; senão herda o vencedor da
   // rodada anterior (home = chave de cima, away = chave de baixo).
   const adv = (c) => (c && c.w ? (c.w === 'home' ? c.home : c.away) : null);
-  const merge = (db, fbHome, fbAway) => ({ home: db.home || fbHome, away: db.away || fbAway, w: db.w });
+
+  // Posiciona o jogo na fatia CERTA da árvore procurando pela dupla de times
+  // esperada (vencedores dos dois jogos que a alimentam) — NÃO por índice/ordem
+  // de cadastro, senão as fatias saem trocadas de lado. Orienta o time de cima
+  // (fbHome) como "home" pra as linhas do bracket não cruzarem.
+  const slot = (phase, fbHome, fbAway) => {
+    const mm = (mbp[phase] || []).find((x) =>
+      (teqB(x.home, fbHome) && teqB(x.away, fbAway)) || (teqB(x.home, fbAway) && teqB(x.away, fbHome)));
+    if (!mm) return { home: fbHome, away: fbAway, w: null };
+    const res = results[mm.id];
+    const rawW = res?.qualifier || (res?.home > res?.away ? 'home' : res?.away > res?.home ? 'away' : null);
+    const sameOrient = fbHome ? teqB(mm.home, fbHome) : true;
+    const home = sameOrient ? mm.home : mm.away;
+    const away = sameOrient ? mm.away : mm.home;
+    const w = rawW ? (sameOrient ? rawW : (rawW === 'home' ? 'away' : 'home')) : null;
+    return { home, away, w };
+  };
 
   const L1 = Y1.map((_, i) => getR1(0, i));
   const R1 = Y1.map((_, i) => getR1(1, i));
-  const L2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', i),   adv(L1[i*2]), adv(L1[i*2+1])));
-  const R2 = [0,1,2,3].map((i) => merge(getM('Oitavas de final', 4+i), adv(R1[i*2]), adv(R1[i*2+1])));
-  const L3 = [0,1].map((i)     => merge(getM('Quartas de final', i),    adv(L2[i*2]), adv(L2[i*2+1])));
-  const R3 = [0,1].map((i)     => merge(getM('Quartas de final', 2+i),  adv(R2[i*2]), adv(R2[i*2+1])));
-  const L4 = merge(getM('Semifinal', 0), adv(L3[0]), adv(L3[1]));
-  const R4 = merge(getM('Semifinal', 1), adv(R3[0]), adv(R3[1]));
-  const FIN = merge(getM('Final', 0), adv(L4), adv(R4));
+  const L2 = [0,1,2,3].map((i) => slot('Oitavas de final', adv(L1[i*2]), adv(L1[i*2+1])));
+  const R2 = [0,1,2,3].map((i) => slot('Oitavas de final', adv(R1[i*2]), adv(R1[i*2+1])));
+  const L3 = [0,1].map((i)     => slot('Quartas de final',  adv(L2[i*2]), adv(L2[i*2+1])));
+  const R3 = [0,1].map((i)     => slot('Quartas de final',  adv(R2[i*2]), adv(R2[i*2+1])));
+  const L4 = slot('Semifinal', adv(L3[0]), adv(L3[1]));
+  const R4 = slot('Semifinal', adv(R3[0]), adv(R3[1]));
+  const FIN = slot('Final', adv(L4), adv(R4));
 
   return (
     <div onClick={onClose} style={{
