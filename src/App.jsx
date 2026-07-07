@@ -492,31 +492,51 @@ async function fetchMatchInfo(home, away, kickoff) {
 }
 
 async function fetchArtilhariaFromGames(matches, results) {
-  const scorers = {};
   const finalized = matches.filter((m) => results[m.id]);
-
+  if (!finalized.length) return [];
+  // Busca o scoreboard de cada DIA (Brasília) uma única vez, em paralelo.
+  const dateStrs = [...new Set(finalized.map((m) => new Date(m.kickoff).toLocaleDateString('en-CA', { timeZone: TZ }).replace(/-/g, '')))];
+  const boards = await Promise.all(dateStrs.map((ds) => espnScoreboard(ds).catch(() => [])));
+  const events = boards.flat();
+  // Casa cada jogo finalizado a um evento ESPN do mesmo dia; deduplica por id.
+  const uniq = new Map();
   for (const m of finalized) {
-    try {
-      const ev = await findEspnEventForMatch(m.home, m.away, m.kickoff);
-      if (!ev) continue;
-      const summary = await espnGet(ESPN_BASE, '/summary', { event: ev.id }).catch(() => ({}));
-
-      for (const roster of summary.rosters || []) {
-        const teamName = roster.team?.displayName;
-        for (const player of roster.roster || []) {
-          for (const play of player.plays || []) {
-            if (!play.didScore) continue;
-            const playerName = player.athlete?.displayName;
-            if (!playerName) continue;
-            if (!scorers[playerName]) scorers[playerName] = { name: playerName, team: teamName, goals: 0, apps: 0 };
-            scorers[playerName].goals++;
-          }
+    const ev = findEspnEvent(events, m.home, m.away);
+    if (ev && sameDayBR(ev.date, m.kickoff)) uniq.set(ev.id, ev);
+  }
+  const summaries = await Promise.all([...uniq.values()].map((ev) => espnGet(ESPN_BASE, '/summary', { event: ev.id }).catch(() => ({}))));
+  const scorers = {};
+  for (const summary of summaries) {
+    for (const roster of summary.rosters || []) {
+      const teamName = roster.team?.displayName;
+      for (const player of roster.roster || []) {
+        for (const play of player.plays || []) {
+          if (!play.didScore) continue;
+          if (play.ownGoal) continue; // não credita gol contra ao jogador
+          const playerName = player.athlete?.displayName;
+          if (!playerName) continue;
+          const k = norm(playerName);
+          if (!scorers[k]) scorers[k] = { name: playerName, team: teamName, goals: 0 };
+          scorers[k].goals++;
         }
       }
-    } catch {}
+    }
   }
-
   return Object.values(scorers).sort((a, b) => b.goals - a.goals);
+}
+
+// Combina a estatística oficial (rápida, com assistências) com a contagem
+// jogo-a-jogo (fresca), ficando com a MAIOR contagem de gols por jogador —
+// corrige o atraso do endpoint de estatísticas da ESPN.
+function mergeArtilharia(stats, games) {
+  const byKey = {};
+  for (const p of stats || []) byKey[norm(p.name)] = { ...p };
+  for (const p of games || []) {
+    const k = norm(p.name);
+    if (byKey[k]) byKey[k].goals = Math.max(byKey[k].goals || 0, p.goals);
+    else byKey[k] = { name: p.name, team: p.team, goals: p.goals, assists: 0, appearances: 0 };
+  }
+  return Object.values(byKey).filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals);
 }
 
 async function fetchArtilharia() {
@@ -3114,12 +3134,16 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootP
     if (!force && c?.data?.length && Date.now() - c.ts < ART_SOFT) { setState({ loading: false, data: c.data }); return; }
     if (!c?.data?.length) setState({ loading: true });
     try {
-      // Rápido: artilheiros oficiais do torneio numa chamada só.
-      let data = await fetchArtilharia().catch(() => []);
-      // Reserva: se a ESPN ainda não publicou a estatística, monta pelos jogos.
-      if (!data?.length) data = await fetchArtilhariaFromGames(matches, results).catch(() => []);
-      if (data?.length) localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
-      setState({ loading: false, data: data?.length ? data : (c?.data || []) });
+      // 1) Rápido: artilheiros oficiais do torneio numa chamada só (mostra já).
+      const quick = await fetchArtilharia().catch(() => []);
+      if (quick.length) setState({ loading: false, data: quick });
+      // 2) Fresco: contagem jogo-a-jogo, e fica com a MAIOR por jogador (o
+      //    endpoint oficial da ESPN atrasa alguns minutos pra somar o último gol).
+      const games = await fetchArtilhariaFromGames(matches, results).catch(() => []);
+      const merged = mergeArtilharia(quick, games);
+      const data = merged.length ? merged : (quick.length ? quick : (c?.data || []));
+      if (data.length) localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+      setState({ loading: false, data });
     } catch (e) {
       setState((s) => (s.data?.length ? s : { loading: false, error: e.message }));
     }
