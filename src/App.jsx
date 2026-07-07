@@ -3099,33 +3099,40 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
 /* ============================ Artilharia ============================ */
 function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootPicks, users, matches, results }) {
   const ART_CACHE_KEY = 'bl_artilharia_cache';
-  const ART_TTL = 2 * 3600 * 1000; // 2 horas
+  const ART_SOFT = 5 * 60 * 1000; // depois de 5 min atualiza em segundo plano
 
+  const readCache = () => { try { return JSON.parse(localStorage.getItem(ART_CACHE_KEY)); } catch { return null; } };
+
+  // Mostra o cache na hora (mesmo velho); a atualização vem por trás.
   const [state, setState] = useState(() => {
-    try {
-      const cached = JSON.parse(localStorage.getItem(ART_CACHE_KEY));
-      if (cached && Date.now() - cached.ts < ART_TTL) return { loading: false, data: cached.data };
-    } catch {}
-    return { loading: true };
+    const c = readCache();
+    return c?.data?.length ? { loading: false, data: c.data } : { loading: true };
   });
 
-  const load = useCallback((force = false) => {
-    if (!force) {
-      try {
-        const cached = JSON.parse(localStorage.getItem(ART_CACHE_KEY));
-        if (cached && Date.now() - cached.ts < ART_TTL) { setState({ loading: false, data: cached.data }); return; }
-      } catch {}
+  const load = useCallback(async (force = false) => {
+    const c = readCache();
+    if (!force && c?.data?.length && Date.now() - c.ts < ART_SOFT) { setState({ loading: false, data: c.data }); return; }
+    if (!c?.data?.length) setState({ loading: true });
+    try {
+      // Rápido: artilheiros oficiais do torneio numa chamada só.
+      let data = await fetchArtilharia().catch(() => []);
+      // Reserva: se a ESPN ainda não publicou a estatística, monta pelos jogos.
+      if (!data?.length) data = await fetchArtilhariaFromGames(matches, results).catch(() => []);
+      if (data?.length) localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+      setState({ loading: false, data: data?.length ? data : (c?.data || []) });
+    } catch (e) {
+      setState((s) => (s.data?.length ? s : { loading: false, error: e.message }));
     }
-    setState((s) => ({ ...s, loading: true }));
-    fetchArtilhariaFromGames(matches, results)
-      .then((data) => {
-        localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
-        setState({ loading: false, data });
-      })
-      .catch((e) => setState({ loading: false, error: e.message }));
   }, [matches, results]);
 
-  useEffect(() => { load(); }, [load]);
+  // Carrega ao abrir e sempre que voltar o foco pro app (sem precisar clicar).
+  useEffect(() => {
+    load(false);
+    const onFocus = () => { if (document.visibilityState === 'visible') load(false); };
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => { document.removeEventListener('visibilitychange', onFocus); window.removeEventListener('focus', onFocus); };
+  }, [load]);
 
   return (
     <section aria-label="Artilharia">
