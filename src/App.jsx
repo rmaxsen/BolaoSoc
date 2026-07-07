@@ -536,7 +536,7 @@ function mergeArtilharia(stats, games) {
     if (byKey[k]) byKey[k].goals = Math.max(byKey[k].goals || 0, p.goals);
     else byKey[k] = { name: p.name, team: p.team, goals: p.goals, assists: 0, appearances: 0 };
   }
-  return Object.values(byKey).filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals);
+  return Object.values(byKey).filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
 }
 
 async function fetchArtilharia() {
@@ -3034,7 +3034,9 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
     return artilhariaData.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
   }, [query, artilhariaData]);
 
-  const leader = artilhariaData?.[0];
+  // Co-artilheiros: TODOS os empatados no topo (não só o primeiro do alfabeto).
+  const maxGoals = artilhariaData?.[0]?.goals || 0;
+  const leaders = (artilhariaData || []).filter((p) => p.goals > 0 && p.goals === maxGoals);
 
   return (
     <div className="bl-champ" style={{ marginBottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
@@ -3043,10 +3045,11 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
         <h3 className="bl-display" style={{ margin: 0 }}>Chuteira de Ouro <span className="bl-champ-badge">+{BOOT_PTS} pts</span></h3>
       </div>
       <p className="sub">Quem vai ser o artilheiro? Acertar vale <b>{BOOT_PTS} pontos</b>. Fecha em <b>21/06 às 23:59</b>.</p>
-      {leader && (
+      {leaders.length > 0 && (
         <div style={{ fontSize: 12, color: 'var(--cinza)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <img src="/boot.png" alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
-          Líder atual: <b style={{ color: 'var(--tinta)' }}>{leader.name}</b> ({leader.goals} gols)
+          {leaders.length === 1 ? 'Líder atual: ' : `Líderes (${leaders.length}): `}
+          <b style={{ color: 'var(--tinta)' }}>{leaders.map((l) => l.name).join(', ')}</b> ({maxGoals} {maxGoals === 1 ? 'gol' : 'gols'})
         </div>
       )}
       {bootWinner && (
@@ -3096,7 +3099,7 @@ function BootPickCard({ myPick, bootWinner, onSave, busy, artilhariaData, bootPi
         <div style={{ marginTop: 12, borderTop: '1px solid rgba(32,48,31,.15)', paddingTop: 10 }}>
           <div style={{ fontSize: 11, color: 'var(--cinza)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Palpites da galera</div>
           {users.filter(u => bootPicks[u.slug]).sort((a, b) => a.name.localeCompare(b.name)).map(u => {
-            const isLeader = leader && bootPicks[u.slug]?.toLowerCase() === leader.name.toLowerCase();
+            const isLeader = bootPicks[u.slug] && leaders.some((l) => norm(bootPicks[u.slug]) === norm(l.name));
             const isWinner = bootWinner && bootPicks[u.slug] && norm(bootPicks[u.slug]) === norm(bootWinner);
             return (
               <div key={u.slug} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 8px', borderBottom: '1px solid rgba(32,48,31,.07)', background: isLeader && !bootWinner ? 'rgba(255,198,41,.1)' : 'transparent', borderRadius: 4 }}>
@@ -3134,13 +3137,15 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootP
     if (!force && c?.data?.length && Date.now() - c.ts < ART_SOFT) { setState({ loading: false, data: c.data }); return; }
     if (!c?.data?.length) setState({ loading: true });
     try {
-      // 1) Rápido: artilheiros oficiais do torneio numa chamada só (mostra já).
+      // 1) Rápido: artilheiros oficiais do torneio numa chamada só.
+      //    Só mostra sozinho se ainda não havia NADA (senão regride o cache bom).
       const quick = await fetchArtilharia().catch(() => []);
-      if (quick.length) setState({ loading: false, data: quick });
-      // 2) Fresco: contagem jogo-a-jogo, e fica com a MAIOR por jogador (o
-      //    endpoint oficial da ESPN atrasa alguns minutos pra somar o último gol).
+      if (!c?.data?.length && quick.length) setState({ loading: false, data: quick });
+      // 2) Fresco: contagem jogo-a-jogo. Fica com a MAIOR contagem por jogador,
+      //    mesclando também o que já tínhamos — gol de torneio só sobe, então
+      //    nunca regride pro número atrasado da estatística oficial da ESPN.
       const games = await fetchArtilhariaFromGames(matches, results).catch(() => []);
-      const merged = mergeArtilharia(quick, games);
+      const merged = mergeArtilharia(mergeArtilharia(quick, games), c?.data || []);
       const data = merged.length ? merged : (quick.length ? quick : (c?.data || []));
       if (data.length) localStorage.setItem(ART_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
       setState({ loading: false, data });
@@ -3183,9 +3188,13 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootP
               </tr>
             </thead>
             <tbody>
-              {state.data.map((p, i) => (
+              {state.data.map((p, i) => {
+                // Empate = mesma posição (ex.: dois artilheiros são ambos "1").
+                const rank = i > 0 && state.data[i - 1].goals === p.goals ? null : i + 1;
+                const tied = state.data.filter((x) => x.goals === p.goals).length > 1;
+                return (
                 <tr key={i} style={{ borderTop: '1px solid rgba(32,48,31,.15)' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)', width: 32 }}>{i + 1}</td>
+                  <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--cinza)', width: 32 }}>{rank ? `${rank}${tied ? '=' : ''}` : ''}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <div style={{ fontWeight: 700 }}>{p.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--cinza)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -3197,7 +3206,8 @@ function ArtilhariaTab({ me, myBootPick, bootWinner, onSaveBootPick, busy, bootP
                   <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.assists || '—'}</td>
                   <td style={{ textAlign: 'center', padding: '10px 8px', color: 'var(--cinza)' }}>{p.appearances}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
